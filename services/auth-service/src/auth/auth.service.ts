@@ -39,8 +39,10 @@ export class AuthService {
     expiresAt.setHours(expiresAt.getHours() + 24);
     await this.verificationTokenRepo.save({ userId: user.id, token, expiresAt });
 
-    // Send verification email
-    await this.emailService.sendVerificationEmail(email, token);
+    // Send verification email (fire-and-forget to avoid blocking on SMTP issues)
+    this.emailService.sendVerificationEmail(email, token).catch((err) => {
+      // Logged inside EmailService, swallow here so registration still succeeds
+    });
 
     return { message: 'Verification email sent. Please check your inbox.', userId: user.id };
   }
@@ -90,7 +92,9 @@ export class AuthService {
     expiresAt.setHours(expiresAt.getHours() + 24);
     await this.verificationTokenRepo.save({ userId: user.id, token, expiresAt });
 
-    await this.emailService.sendVerificationEmail(email, token);
+    this.emailService.sendVerificationEmail(email, token).catch((err) => {
+      // Logged inside EmailService, swallow here so resend still returns
+    });
 
     return { message: 'Verification email resent. Please check your inbox.' };
   }
