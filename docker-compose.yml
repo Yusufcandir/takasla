@@ -265,6 +265,7 @@ services:
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
       - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
