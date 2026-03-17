@@ -1,0 +1,129 @@
+version: '3.8'
+
+# Development override: only infrastructure services (run app services via pnpm dev)
+# Usage: docker-compose -f docker-compose.dev.yml up -d
+
+services:
+  postgres-auth:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-auth-dev:/var/lib/postgresql/data
+
+  postgres-user:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-user-dev:/var/lib/postgresql/data
+
+  postgres-listing:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: listing_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata-listing-dev:/var/lib/postgresql/data
+
+  postgres-offer:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: offer_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - pgdata-offer-dev:/var/lib/postgresql/data
+
+  postgres-trade:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: trade_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5437:5432"
+    volumes:
+      - pgdata-trade-dev:/var/lib/postgresql/data
+
+  postgres-reputation:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: reputation_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5438:5432"
+    volumes:
+      - pgdata-reputation-dev:/var/lib/postgresql/data
+
+  postgres-dispute:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dispute_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5439:5432"
+    volumes:
+      - pgdata-dispute-dev:/var/lib/postgresql/data
+
+  postgres-certificate:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: certificate_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5440:5432"
+    volumes:
+      - pgdata-certificate-dev:/var/lib/postgresql/data
+
+  postgres-payment:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: exchange_dev_password
+    ports:
+      - "5442:5432"
+    volumes:
+      - pgdata-payment-dev:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: exchange
+      RABBITMQ_DEFAULT_PASS: exchange_dev_password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+volumes:
+  pgdata-auth-dev:
+  pgdata-user-dev:
+  pgdata-listing-dev:
+  pgdata-offer-dev:
+  pgdata-trade-dev:
+  pgdata-reputation-dev:
+  pgdata-dispute-dev:
+  pgdata-certificate-dev:
+  pgdata-payment-dev:

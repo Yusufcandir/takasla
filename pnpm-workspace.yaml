@@ -1,0 +1,11 @@
+packages:
+  - 'packages/*'
+  - 'services/*'
+  - 'frontend'
+  - 'admin-frontend'
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - bcrypt
+  - esbuild
+  - '@swc/core'

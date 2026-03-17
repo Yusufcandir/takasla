@@ -1,0 +1,199 @@
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, UseInterceptors, UploadedFiles, Res, NotFoundException, ForbiddenException, HttpCode, HttpStatus } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard, CurrentUser, Public, StorageService } from '@exchange/common';
+import { JwtPayload, ItemCondition } from '@exchange/shared-types';
+import { ConfigService } from '@nestjs/config';
+import { ListingsService } from './listings.service';
+import { CreateListingDto, UpdateListingDto, BoostListingDto, AskQuestionDto, AnswerQuestionDto } from './dto';
+import { memoryStorage } from 'multer';
+import { join } from 'path';
+import { Response } from 'express';
+import { existsSync } from 'fs';
+
+const BOOST_CONFIG = {
+  featured: { durationDays: 7, amount: 149.99, label: 'Featured Boost (7 days)' },
+  spotlight: { durationDays: 30, amount: 449.99, label: 'Spotlight Boost (30 days)' },
+};
+
+@Controller('listings')
+export class ListingsController {
+  constructor(
+    private readonly listingsService: ListingsService,
+    private readonly config: ConfigService,
+    private readonly storageService: StorageService,
+  ) {}
+
+  @Public()
+  @Get()
+  async findAll(@Query('page') page = '1', @Query('limit') limit = '20') {
+    return this.listingsService.findAll(parseInt(page), parseInt(limit));
+  }
+
+  // Static sub-paths must come before :id to avoid being swallowed by the wildcard
+  @Public()
+  @Get('user/:userId')
+  async findByUser(@Param('userId') userId: string) {
+    return this.listingsService.findByUser(userId);
+  }
+
+  @Get('category/:categoryId')
+  @Public()
+  async findByCategory(@Param('categoryId') categoryId: string) {
+    return this.listingsService.findByCategory(categoryId);
+  }
+
+  @Public()
+  @Get('spotlight')
+  async getSpotlight() {
+    return this.listingsService.findSpotlightListings();
+  }
+
+  @Post(':id/boost')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async boostListing(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: BoostListingDto,
+  ) {
+    const listing = await this.listingsService.findById(id);
+    if (listing.userId !== user.sub) throw new ForbiddenException('Not your listing');
+    if (listing.status !== 'active') throw new ForbiddenException('Can only boost active listings');
+
+    const config = BOOST_CONFIG[body.tier];
+    if (!config) throw new ForbiddenException('Invalid tier');
+
+    const paymentServiceUrl = this.config.get<string>('PAYMENT_SERVICE_URL', 'http://payment-service:3010');
+    const res = await fetch(`${paymentServiceUrl}/payments/create-boost`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.sub,
+        listingId: id,
+        tier: body.tier,
+        durationDays: config.durationDays,
+        amount: config.amount,
+        currency: listing.currency || 'TRY',
+      }),
+    });
+
+    if (!res.ok) throw new Error('Failed to create boost payment');
+    const payment = await res.json() as { id: string };
+    return { paymentId: payment.id, tier: body.tier, amount: config.amount };
+  }
+
+  @Public()
+  @Get('uploads/:filename')
+  async serveUpload(@Param('filename') filename: string, @Res() res: Response) {
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '');
+    // Try new fallback dir first, then old upload dir for backward compat
+    const fallbackPath = join(process.cwd(), 'uploads-fallback', 'listings', safeName);
+    const legacyPath = join(process.cwd(), 'uploads', safeName);
+    const filePath = existsSync(fallbackPath) ? fallbackPath : legacyPath;
+    if (!existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+    return res.sendFile(filePath);
+  }
+
+  @Public()
+  @Get(':id')
+  async findById(@Param('id') id: string) {
+    return this.listingsService.findById(id);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  async create(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: CreateListingDto,
+  ) {
+    return this.listingsService.create(user.sub, body);
+  }
+
+  @Post('upload')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('images', 10, { storage: memoryStorage() }))
+  async uploadImages(@UploadedFiles() files: Express.Multer.File[]) {
+    const results = await Promise.all(
+      (files || []).map(async (file) => {
+        const result = await this.storageService.upload('listings', file.buffer, file.originalname, file.mimetype);
+        return {
+          url: result.url || `/api/listings/uploads/${result.key.split('/').pop()}`,
+          originalName: file.originalname,
+          size: file.size,
+        };
+      }),
+    );
+    return results;
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  async update(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: UpdateListingDto,
+  ) {
+    return this.listingsService.update(id, user.sub, body);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  async archive(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    await this.listingsService.archive(id, user.sub);
+    return { message: 'Listing archived' };
+  }
+
+  // --- Q&A ---
+  @Public()
+  @Get(':id/questions')
+  async getQuestions(@Param('id') id: string) {
+    return this.listingsService.getQuestions(id);
+  }
+
+  @Post(':id/questions')
+  @UseGuards(JwtAuthGuard)
+  async askQuestion(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: AskQuestionDto,
+  ) {
+    return this.listingsService.askQuestion(id, user.sub, body.question);
+  }
+
+  @Patch(':id/questions/:questionId/answer')
+  @UseGuards(JwtAuthGuard)
+  async answerQuestion(
+    @Param('id') id: string,
+    @Param('questionId') questionId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: AnswerQuestionDto,
+  ) {
+    return this.listingsService.answerQuestion(id, questionId, user.sub, body.answer);
+  }
+
+  // --- Favorites ---
+  @Public()
+  @Get(':id/favorites/count')
+  async getFavoritesCount(@Param('id') id: string) {
+    return this.listingsService.getFavoritesCount(id);
+  }
+
+  @Post(':id/favorite')
+  @UseGuards(JwtAuthGuard)
+  async toggleFavorite(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.listingsService.toggleFavorite(id, user.sub);
+  }
+
+  @Get('my/favorites')
+  @UseGuards(JwtAuthGuard)
+  async getMyFavorites(@CurrentUser() user: JwtPayload) {
+    return this.listingsService.getMyFavorites(user.sub);
+  }
+
+  @Public()
+  @Get(':id/favorites/check')
+  async checkFavorite(@Param('id') id: string, @Query('userId') userId: string) {
+    if (!userId) return { favorited: false };
+    return this.listingsService.checkFavorite(id, userId);
+  }
+}

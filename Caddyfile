@@ -1,0 +1,51 @@
+# Reverse proxy for Exchange Platform
+# Local dev: serves on HTTP port 80
+# Production: change ":80" to "yourdomain.com" for auto Let's Encrypt TLS
+
+:80 {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://nominatim.openstreetmap.org; font-src 'self' data:; frame-ancestors 'none'"
+		-Server
+	}
+
+	# Next.js API routes (geo data) — served by the frontend, not the gateway
+	handle /api/geo/* {
+		reverse_proxy frontend:4000
+	}
+
+	# API gateway — proxy all other /api/* requests
+	handle /api/* {
+		reverse_proxy api-gateway:3000
+	}
+
+	# Frontend — everything else
+	handle {
+		reverse_proxy frontend:4000
+	}
+}
+
+# Admin frontend on port 4001
+:4001 {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# API gateway — proxy /api/* so admin calls stay same-origin
+	handle /api/* {
+		reverse_proxy api-gateway:3000
+	}
+
+	handle {
+		reverse_proxy admin-frontend:4001
+	}
+}

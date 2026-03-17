@@ -1,0 +1,690 @@
+version: '3.8'
+
+services:
+  # ============ INFRASTRUCTURE ============
+
+  postgres-auth:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+    volumes:
+      - pgdata-auth:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-user:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD}
+    volumes:
+      - pgdata-user:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d user_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-listing:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: listing_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${LISTING_DB_PASSWORD}
+    volumes:
+      - pgdata-listing:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d listing_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-offer:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: offer_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${OFFER_DB_PASSWORD}
+    volumes:
+      - pgdata-offer:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d offer_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-trade:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: trade_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${TRADE_DB_PASSWORD}
+    volumes:
+      - pgdata-trade:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d trade_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-reputation:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: reputation_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${REPUTATION_DB_PASSWORD}
+    volumes:
+      - pgdata-reputation:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d reputation_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-dispute:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dispute_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${DISPUTE_DB_PASSWORD}
+    volumes:
+      - pgdata-dispute:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d dispute_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-certificate:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: certificate_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${CERTIFICATE_DB_PASSWORD}
+    volumes:
+      - pgdata-certificate:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d certificate_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-shipping:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: shipping_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${SHIPPING_DB_PASSWORD}
+    volumes:
+      - pgdata-shipping:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d shipping_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-payment:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD}
+    volumes:
+      - pgdata-payment:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d payment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-messaging:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: messaging_db
+      POSTGRES_USER: exchange
+      POSTGRES_PASSWORD: ${MESSAGING_DB_PASSWORD}
+    volumes:
+      - pgdata-messaging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange -d messaging_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: exchange
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ============ REVERSE PROXY ============
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "4001:4001"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - admin-frontend
+      - api-gateway
+    restart: unless-stopped
+
+  # ============ SERVICES ============
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    environment:
+      - API_GATEWAY_PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - AUTH_SERVICE_PORT=3001
+      - USER_SERVICE_PORT=3002
+      - LISTING_SERVICE_PORT=3003
+      - OFFER_SERVICE_PORT=3004
+      - TRADE_SERVICE_PORT=3005
+      - REPUTATION_SERVICE_PORT=3006
+      - DISPUTE_SERVICE_PORT=3007
+      - CERTIFICATE_SERVICE_PORT=3008
+      - SHIPPING_SERVICE_PORT=3009
+      - PAYMENT_SERVICE_PORT=3010
+    depends_on:
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - AUTH_SERVICE_PORT=3001
+      - AUTH_DB_HOST=postgres-auth
+      - AUTH_DB_PORT=5432
+      - AUTH_DB_NAME=auth_db
+      - AUTH_DB_USER=exchange
+      - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=5m
+      - JWT_REFRESH_EXPIRATION=7d
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user-service/Dockerfile
+    volumes:
+      - user-avatars:/app/uploads/avatars
+    environment:
+      - NODE_ENV=production
+      - USER_SERVICE_PORT=3002
+      - USER_DB_HOST=postgres-user
+      - USER_DB_PORT=5432
+      - USER_DB_NAME=user_db
+      - USER_DB_USER=exchange
+      - USER_DB_PASSWORD=${USER_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME:-exchange-uploads}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  listing-service:
+    build:
+      context: .
+      dockerfile: services/listing-service/Dockerfile
+    volumes:
+      - listing-uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - LISTING_SERVICE_PORT=3003
+      - LISTING_DB_HOST=postgres-listing
+      - LISTING_DB_PORT=5432
+      - LISTING_DB_NAME=listing_db
+      - LISTING_DB_USER=exchange
+      - LISTING_DB_PASSWORD=${LISTING_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME:-exchange-uploads}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
+      - PAYMENT_SERVICE_URL=http://payment-service:3010
+    depends_on:
+      postgres-listing:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  offer-service:
+    build:
+      context: .
+      dockerfile: services/offer-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - OFFER_SERVICE_PORT=3004
+      - OFFER_DB_HOST=postgres-offer
+      - OFFER_DB_PORT=5432
+      - OFFER_DB_NAME=offer_db
+      - OFFER_DB_USER=exchange
+      - OFFER_DB_PASSWORD=${OFFER_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    depends_on:
+      postgres-offer:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  trade-service:
+    build:
+      context: .
+      dockerfile: services/trade-service/Dockerfile
+    volumes:
+      - trade-proof-uploads:/app/proof-uploads
+    environment:
+      - NODE_ENV=production
+      - TRADE_SERVICE_PORT=3005
+      - TRADE_DB_HOST=postgres-trade
+      - TRADE_DB_PORT=5432
+      - TRADE_DB_NAME=trade_db
+      - TRADE_DB_USER=exchange
+      - TRADE_DB_PASSWORD=${TRADE_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME:-exchange-uploads}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
+      - LISTING_SERVICE_URL=http://listing-service:3003
+      - USER_SERVICE_URL=http://user-service:3002
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
+    depends_on:
+      postgres-trade:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  reputation-service:
+    build:
+      context: .
+      dockerfile: services/reputation-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - REPUTATION_SERVICE_PORT=3006
+      - REPUTATION_DB_HOST=postgres-reputation
+      - REPUTATION_DB_PORT=5432
+      - REPUTATION_DB_NAME=reputation_db
+      - REPUTATION_DB_USER=exchange
+      - REPUTATION_DB_PASSWORD=${REPUTATION_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
+    depends_on:
+      postgres-reputation:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  dispute-service:
+    build:
+      context: .
+      dockerfile: services/dispute-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - DISPUTE_SERVICE_PORT=3007
+      - DISPUTE_DB_HOST=postgres-dispute
+      - DISPUTE_DB_PORT=5432
+      - DISPUTE_DB_NAME=dispute_db
+      - DISPUTE_DB_USER=exchange
+      - DISPUTE_DB_PASSWORD=${DISPUTE_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    depends_on:
+      postgres-dispute:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  certificate-service:
+    build:
+      context: .
+      dockerfile: services/certificate-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - CERTIFICATE_SERVICE_PORT=3008
+      - CERTIFICATE_DB_HOST=postgres-certificate
+      - CERTIFICATE_DB_PORT=5432
+      - CERTIFICATE_DB_NAME=certificate_db
+      - CERTIFICATE_DB_USER=exchange
+      - CERTIFICATE_DB_PASSWORD=${CERTIFICATE_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - SEPOLIA_RPC_URL=${SEPOLIA_RPC_URL:-}
+      - SEPOLIA_PRIVATE_KEY=${SEPOLIA_PRIVATE_KEY:-}
+      - MERKLE_ANCHOR_CONTRACT_ADDRESS=${MERKLE_ANCHOR_CONTRACT_ADDRESS:-}
+    depends_on:
+      postgres-certificate:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  shipping-service:
+    build:
+      context: .
+      dockerfile: services/shipping-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - SHIPPING_SERVICE_PORT=3009
+      - SHIPPING_DB_HOST=postgres-shipping
+      - SHIPPING_DB_PORT=5432
+      - SHIPPING_DB_NAME=shipping_db
+      - SHIPPING_DB_USER=exchange
+      - SHIPPING_DB_PASSWORD=${SHIPPING_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - GELIVER_TOKEN=${GELIVER_TOKEN:-}
+      - GELIVER_TEST_MODE=${GELIVER_TEST_MODE:-true}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost}
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
+    depends_on:
+      postgres-shipping:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PAYMENT_SERVICE_PORT=3010
+      - PAYMENT_DB_HOST=postgres-payment
+      - PAYMENT_DB_PORT=5432
+      - PAYMENT_DB_NAME=payment_db
+      - PAYMENT_DB_USER=exchange
+      - PAYMENT_DB_PASSWORD=${PAYMENT_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - IYZICO_API_KEY=${IYZICO_API_KEY:-}
+      - IYZICO_SECRET_KEY=${IYZICO_SECRET_KEY:-}
+      - IYZICO_BASE_URL=${IYZICO_BASE_URL:-https://sandbox-api.iyzipay.com}
+      - PLATFORM_FEE_PERCENTAGE=${PLATFORM_FEE_PERCENTAGE:-0.025}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - GATEWAY_URL=http://api-gateway:3000
+      - LISTING_SERVICE_URL=http://listing-service:3003
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
+      - DB_LOGGING=${DB_LOGGING:-false}
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  messaging-service:
+    build:
+      context: .
+      dockerfile: services/messaging-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - MESSAGING_SERVICE_PORT=3011
+      - MESSAGING_DB_HOST=postgres-messaging
+      - MESSAGING_DB_PORT=5432
+      - MESSAGING_DB_NAME=messaging_db
+      - MESSAGING_DB_USER=exchange
+      - MESSAGING_DB_PASSWORD=${MESSAGING_DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=exchange
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
+      - DB_LOGGING=${DB_LOGGING:-false}
+    depends_on:
+      postgres-messaging:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+    environment:
+      - PORT=4000
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+  admin-frontend:
+    build:
+      context: .
+      dockerfile: admin-frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${ADMIN_API_URL:-http://localhost:4001/api}
+    environment:
+      - PORT=4001
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+  # ============ BACKUPS ============
+
+  db-backup:
+    image: postgres:16-alpine
+    volumes:
+      - db-backups:/backups
+      - ./scripts/backup-databases.sh:/backup.sh:ro
+    environment:
+      - PGUSER=exchange
+      - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD}
+      - USER_DB_PASSWORD=${USER_DB_PASSWORD}
+      - LISTING_DB_PASSWORD=${LISTING_DB_PASSWORD}
+      - OFFER_DB_PASSWORD=${OFFER_DB_PASSWORD}
+      - TRADE_DB_PASSWORD=${TRADE_DB_PASSWORD}
+      - REPUTATION_DB_PASSWORD=${REPUTATION_DB_PASSWORD}
+      - DISPUTE_DB_PASSWORD=${DISPUTE_DB_PASSWORD}
+      - CERTIFICATE_DB_PASSWORD=${CERTIFICATE_DB_PASSWORD}
+      - SHIPPING_DB_PASSWORD=${SHIPPING_DB_PASSWORD}
+      - PAYMENT_DB_PASSWORD=${PAYMENT_DB_PASSWORD}
+      - MESSAGING_DB_PASSWORD=${MESSAGING_DB_PASSWORD}
+    entrypoint: ["/bin/sh", "-c", "echo '0 */6 * * * /bin/sh /backup.sh >> /var/log/backup.log 2>&1' | crontab - && crond -f -l 2"]
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      postgres-trade:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata-auth:
+  pgdata-user:
+  pgdata-listing:
+  pgdata-offer:
+  pgdata-trade:
+  pgdata-reputation:
+  pgdata-dispute:
+  pgdata-certificate:
+  redis-data:
+  rabbitmq-data:
+  pgdata-shipping:
+  pgdata-payment:
+  trade-proof-uploads:
+  user-avatars:
+  listing-uploads:
+  pgdata-messaging:
+  db-backups:

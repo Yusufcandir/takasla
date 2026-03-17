@@ -1,0 +1,32 @@
+{
+  "name": "exchange-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Secure Goods Exchange Platform - Research-grade C2C item exchange with risk-based escrow",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm -r test:e2e",
+    "test:integration": "pnpm --filter @exchange/trade-service test:integration",
+    "metrics": "ts-node scripts/collect-metrics.ts",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "db:migrate": "pnpm -r db:migrate",
+    "clean": "pnpm -r clean"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/pg": "^8.11.0",
+    "pg": "^8.11.3",
+    "solc": "^0.8.28",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,221 @@
+version: '3.8'
+
+# =============================================================================
+# Production Overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  # ============ INFRASTRUCTURE — Memory Limits ============
+
+  postgres-auth:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-user:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-listing:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-offer:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-trade:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-reputation:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-dispute:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-certificate:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-shipping:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-payment:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  rabbitmq:
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  # ============ SERVICES — Production Env + Limits ============
+
+  api-gateway:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  auth-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  user-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  listing-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  offer-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  trade-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  reputation-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  dispute-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  certificate-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  shipping-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  payment-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  postgres-messaging:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  messaging-service:
+    environment:
+      - TYPEORM_SYNCHRONIZE=false
+      - DB_LOGGING=false
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  frontend:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  admin-frontend:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  caddy:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  db-backup:
+    deploy:
+      resources:
+        limits:
+          memory: 256M

@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; scroll-behavior: smooth; }
+  body { @apply bg-slate-50 text-slate-900 font-sans; }
+  ::selection { @apply bg-amber-500/20 text-amber-900; }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-primary { @apply btn bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-400 shadow-soft hover:shadow-card; }
+  .btn-secondary { @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 focus:ring-slate-400; }
+  .btn-emerald { @apply btn bg-emerald-500 text-white hover:bg-emerald-600 focus:ring-emerald-400 shadow-soft hover:shadow-card; }
+  .btn-danger { @apply btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-400; }
+  .btn-ghost { @apply btn text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+
+  .card { @apply bg-white rounded-xl border border-slate-200/60 shadow-soft; }
+  .card-hover { @apply card transition-all duration-200 hover:shadow-card hover:border-slate-300/60 hover:-translate-y-0.5; }
+
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full; }
+  .badge-emerald { @apply badge bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20; }
+  .badge-amber { @apply badge bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20; }
+  .badge-red { @apply badge bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20; }
+  .badge-blue { @apply badge bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20; }
+  .badge-slate { @apply badge bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/10; }
+
+  .input { @apply w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-lg placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/40 transition-colors duration-200; }
+  .label { @apply block text-sm font-medium text-slate-700 mb-1.5; }
+
+  .skeleton { @apply animate-pulse bg-slate-200 rounded; }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }

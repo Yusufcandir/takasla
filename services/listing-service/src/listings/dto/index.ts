@@ -1,0 +1,109 @@
+import { IsString, IsNumber, IsOptional, IsArray, IsEnum, IsBoolean, IsIn, IsNotEmpty, Min, MinLength, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ItemCondition } from '@exchange/shared-types';
+
+export class CreateListingDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  title!: string;
+
+  @IsString()
+  @MinLength(10)
+  description!: string;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  declaredValue?: number;
+
+  @IsString()
+  @IsOptional()
+  currency?: string;
+
+  @IsString()
+  categoryId!: string;
+
+  @IsEnum(ItemCondition)
+  condition!: ItemCondition;
+
+  @IsArray()
+  @IsString({ each: true })
+  imageUrls!: string[];
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsIn(['local_pickup', 'shipping', 'both'])
+  @IsOptional()
+  shippingOption?: 'local_pickup' | 'shipping' | 'both';
+
+  @IsIn(['fixed', 'negotiable', 'offers_only'])
+  @IsOptional()
+  priceFlexibility?: 'fixed' | 'negotiable' | 'offers_only';
+
+  @IsBoolean()
+  @IsOptional()
+  hasOriginalPackaging?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  hasPurchaseReceipt?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  hasCertificateOfAuthenticity?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  minExchangeValue?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  maxExchangeValue?: number;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  preferredCategories?: string[];
+}
+
+export class UpdateListingDto {
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  declaredValue?: number;
+
+  @IsString()
+  @IsOptional()
+  categoryId?: string;
+}
+
+export class BoostListingDto {
+  @IsIn(['featured', 'spotlight'])
+  tier!: 'featured' | 'spotlight';
+}
+
+export class AskQuestionDto {
+  @IsString()
+  @IsNotEmpty()
+  question!: string;
+}
+
+export class AnswerQuestionDto {
+  @IsString()
+  @IsNotEmpty()
+  answer!: string;
+}

@@ -1,0 +1,49 @@
+# =============================================================================
+# Production Caddyfile — Auto HTTPS via Let's Encrypt
+# =============================================================================
+# This is a TEMPLATE. deploy.sh replaces __DOMAIN__ and __ADMIN_DOMAIN__
+# with your actual DuckDNS subdomains.
+# =============================================================================
+
+__DOMAIN__ {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://nominatim.openstreetmap.org; font-src 'self' data:; frame-ancestors 'none'"
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	}
+
+	# Next.js API routes (geo data) — served by the frontend, not the gateway
+	handle /api/geo/* {
+		reverse_proxy frontend:4000
+	}
+
+	# API gateway — proxy all other /api/* requests
+	handle /api/* {
+		reverse_proxy api-gateway:3000
+	}
+
+	# Frontend — everything else
+	handle {
+		reverse_proxy frontend:4000
+	}
+}
+
+__ADMIN_DOMAIN__ {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'"
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	}
+
+	reverse_proxy admin-frontend:4001
+}
