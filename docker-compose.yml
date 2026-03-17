@@ -266,6 +266,7 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-auth:
         condition: service_healthy
@@ -302,6 +303,7 @@ services:
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
       - R2_BUCKET_NAME=${R2_BUCKET_NAME:-exchange-uploads}
       - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-user:
         condition: service_healthy
@@ -339,6 +341,7 @@ services:
       - R2_BUCKET_NAME=${R2_BUCKET_NAME:-exchange-uploads}
       - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
       - PAYMENT_SERVICE_URL=http://payment-service:3010
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-listing:
         condition: service_healthy
@@ -368,6 +371,7 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=exchange
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-offer:
         condition: service_healthy
@@ -470,6 +474,7 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=exchange
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-dispute:
         condition: service_healthy
@@ -502,6 +507,7 @@ services:
       - SEPOLIA_RPC_URL=${SEPOLIA_RPC_URL:-}
       - SEPOLIA_PRIVATE_KEY=${SEPOLIA_PRIVATE_KEY:-}
       - MERKLE_ANCHOR_CONTRACT_ADDRESS=${MERKLE_ANCHOR_CONTRACT_ADDRESS:-}
+      - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-certificate:
         condition: service_healthy
