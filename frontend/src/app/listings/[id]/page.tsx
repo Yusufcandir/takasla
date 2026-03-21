@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { listingsApi, publicProfileApi, questionsApi, favoritesApi, paymentsApi, messagingApi, getImageUrl } from '@/lib/api';
+import { listingsApi, publicProfileApi, questionsApi, favoritesApi, paymentsApi, messagingApi, getImageUrl, QAQuestion } from '@/lib/api';
 import { getUserId, isAuthenticated } from '@/lib/auth';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -13,15 +13,7 @@ const STATUS_STYLES: Record<string, string> = { active: 'badge-emerald', locked:
 const TRUST_COLOR: Record<string, string> = { emerald: 'text-emerald-600', amber: 'text-amber-600', red: 'text-red-600' };
 const TRUST_BG: Record<string, string> = { emerald: '#10B981', amber: '#F59E0B', red: '#EF4444' };
 
-interface Question {
-  id: string;
-  listingId: string;
-  askerId: string;
-  question: string;
-  answer?: string;
-  answeredAt?: string;
-  createdAt: string;
-}
+type Question = QAQuestion;
 
 function TrustRing({ score }: { score: number }) {
   const clamped = Math.min(100, Math.max(0, Number(score)));
@@ -66,6 +58,13 @@ export default function ListingDetailPage() {
   const [answeringId, setAnsweringId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState('');
   const [submittingA, setSubmittingA] = useState(false);
+
+  // Threaded Q&A state
+  const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
+  const [threadReplies, setThreadReplies] = useState<Record<string, Question[]>>({});
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
 
   // Boost state
   const [boosting, setBoosting] = useState(false);
@@ -113,7 +112,9 @@ export default function ListingDetailPage() {
       promises.push(
         questionsApi.getAll(listingId).then(async (qs) => {
           setQuestions(qs);
-          const uniqueAskerIds = [...new Set(qs.map((q) => q.askerId))];
+          const allIds: string[] = qs.map((q) => q.askerId);
+          qs.forEach((q) => { if (q.firstReply) allIds.push(q.firstReply.askerId); });
+          const uniqueAskerIds = [...new Set(allIds)];
           const profiles: Record<string, Profile> = {};
           await Promise.allSettled(
             uniqueAskerIds.map((id) =>
@@ -167,6 +168,48 @@ export default function ListingDetailPage() {
       setAnswerText('');
     } catch {}
     setSubmittingA(false);
+  };
+
+  const fetchProfilesForReplies = async (replies: Question[]) => {
+    const newIds = replies.map((r) => r.askerId).filter((id) => !askerProfiles[id]);
+    const uniqueIds = [...new Set(newIds)];
+    if (uniqueIds.length > 0) {
+      const profiles: Record<string, Profile> = {};
+      await Promise.allSettled(
+        uniqueIds.map((id) => publicProfileApi.getProfile(id).then((p) => { profiles[id] = p; })),
+      );
+      setAskerProfiles((prev) => ({ ...prev, ...profiles }));
+    }
+  };
+
+  const handleExpandThread = async (questionId: string) => {
+    if (!expandedThreads[questionId]) {
+      try {
+        const replies = await questionsApi.getThread(listingId, questionId);
+        setThreadReplies((prev) => ({ ...prev, [questionId]: replies }));
+        await fetchProfilesForReplies(replies);
+      } catch {}
+    }
+    setExpandedThreads((prev) => ({ ...prev, [questionId]: !prev[questionId] }));
+  };
+
+  const handleReply = async (questionId: string) => {
+    if (!replyText.trim()) return;
+    setSubmittingReply(true);
+    try {
+      await questionsApi.reply(listingId, questionId, replyText.trim());
+      const [replies, updated] = await Promise.all([
+        questionsApi.getThread(listingId, questionId),
+        questionsApi.getAll(listingId),
+      ]);
+      setThreadReplies((prev) => ({ ...prev, [questionId]: replies }));
+      setQuestions(updated);
+      await fetchProfilesForReplies(replies);
+      setReplyText('');
+      setReplyingToId(null);
+      setExpandedThreads((prev) => ({ ...prev, [questionId]: true }));
+    } catch {}
+    setSubmittingReply(false);
   };
 
   const handleShare = () => {
@@ -370,8 +413,41 @@ export default function ListingDetailPage() {
               <div className="space-y-4 mb-4">
                 {questions.map((q) => {
                   const asker = askerProfiles[q.askerId];
+                  const isExpanded = expandedThreads[q.id];
+                  const replies = threadReplies[q.id] || [];
+                  const canReply = authed && (currentUserId === q.askerId || isOwner);
+
+                  const renderReplyBubble = (reply: Question) => {
+                    const replyAuthor = askerProfiles[reply.askerId];
+                    const isSeller = reply.askerId === listing.userId;
+                    return (
+                      <div key={reply.id} className="flex items-start gap-2 mt-2">
+                        <Link href={`/profile/${reply.askerId}`} className="shrink-0 mt-0.5">
+                          {replyAuthor?.avatarUrl ? (
+                            <img src={replyAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center">
+                              <span className="text-[10px] font-bold text-slate-500">{replyAuthor?.displayName?.[0]?.toUpperCase() || '?'}</span>
+                            </div>
+                          )}
+                        </Link>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Link href={`/profile/${reply.askerId}`} className="text-xs font-semibold text-slate-900 hover:underline">
+                              {replyAuthor?.displayName || t('listing_detail.qa_anonymous')}
+                            </Link>
+                            {isSeller && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{t('listing_detail.seller')}</span>}
+                            <span className="text-[10px] text-slate-400">{new Date(reply.createdAt).toLocaleDateString(locale === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' })}</span>
+                          </div>
+                          <p className="text-sm text-slate-700 mt-0.5">{reply.question}</p>
+                        </div>
+                      </div>
+                    );
+                  };
+
                   return (
                   <div key={q.id} className="card p-4">
+                    {/* Root question */}
                     <div className="flex items-start gap-3">
                       <Link href={`/profile/${q.askerId}`} className="shrink-0 mt-0.5">
                         {asker?.avatarUrl ? (
@@ -388,7 +464,9 @@ export default function ListingDetailPage() {
                           <span className="text-xs text-slate-400">{new Date(q.createdAt).toLocaleDateString(locale === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' })}</span>
                         </div>
                         <p className="text-sm text-slate-700 mt-0.5">{q.question}</p>
-                        {q.answer ? (
+
+                        {/* Legacy answer (backward compat) */}
+                        {q.answer && !q.replyCount && (
                           <div className="mt-3 pl-3 border-l-2 border-emerald-300">
                             <p className="text-sm text-slate-700">{q.answer}</p>
                             <p className="text-xs text-slate-400 mt-0.5">
@@ -396,18 +474,48 @@ export default function ListingDetailPage() {
                               {' — '}{t('listing_detail.qa_seller_answered')}
                             </p>
                           </div>
-                        ) : isOwner && (
+                        )}
+
+                        {/* Threaded replies */}
+                        {q.replyCount > 0 && (
+                          <div className="mt-3 pl-3 border-l-2 border-slate-200">
+                            {!isExpanded ? (
+                              <>
+                                {/* Show first reply preview */}
+                                {q.firstReply && renderReplyBubble(q.firstReply)}
+                                {q.replyCount > 1 && (
+                                  <button onClick={() => handleExpandThread(q.id)} className="text-xs text-navy-900 hover:underline mt-2 font-medium">
+                                    {t('listing_detail.qa_see_all').replace('{count}', String(q.replyCount))}
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {/* Show all replies */}
+                                {replies.map(renderReplyBubble)}
+                                <button onClick={() => setExpandedThreads((prev) => ({ ...prev, [q.id]: false }))} className="text-xs text-slate-500 hover:underline mt-2">
+                                  {t('listing_detail.qa_collapse')}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Reply input */}
+                        {canReply && (
                           <div className="mt-2">
-                            {answeringId === q.id ? (
+                            {replyingToId === q.id ? (
                               <div className="space-y-2">
-                                <textarea value={answerText} onChange={(e) => setAnswerText(e.target.value)} className="input text-sm" placeholder={t('listing_detail.qa_answer_placeholder')} rows={2} />
+                                <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} className="input text-sm" placeholder={t('listing_detail.qa_reply_placeholder')} rows={2} />
                                 <div className="flex gap-2">
-                                  <button onClick={() => handleAnswerQuestion(q.id)} disabled={submittingA} className="btn-emerald btn-sm">{t('listing_detail.qa_post_answer')}</button>
-                                  <button onClick={() => setAnsweringId(null)} className="btn-secondary btn-sm">{t('listing_detail.qa_cancel')}</button>
+                                  <button onClick={() => handleReply(q.id)} disabled={submittingReply || !replyText.trim()} className="btn-emerald btn-sm">
+                                    {submittingReply ? t('listing_detail.qa_replying') : t('listing_detail.qa_post_reply')}
+                                  </button>
+                                  <button onClick={() => { setReplyingToId(null); setReplyText(''); }} className="btn-secondary btn-sm">{t('listing_detail.qa_cancel')}</button>
                                 </div>
                               </div>
                             ) : (
-                              <button onClick={() => { setAnsweringId(q.id); setAnswerText(''); }} className="text-xs text-navy-900 hover:underline mt-1">{t('listing_detail.qa_answer_this')}</button>
+                              <button onClick={() => { setReplyingToId(q.id); setReplyText(''); }} className="text-xs text-navy-900 hover:underline mt-1">{t('listing_detail.qa_reply')}</button>
                             )}
                           </div>
                         )}

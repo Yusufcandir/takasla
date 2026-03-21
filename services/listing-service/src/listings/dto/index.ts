@@ -107,3 +107,9 @@ export class AnswerQuestionDto {
   @IsNotEmpty()
   answer!: string;
 }
+
+export class AddReplyDto {
+  @IsString()
+  @IsNotEmpty()
+  content!: string;
+}

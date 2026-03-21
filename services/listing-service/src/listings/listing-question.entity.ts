@@ -25,6 +25,16 @@ export class ListingQuestionEntity {
   @Column({ name: 'answered_at', type: 'timestamptz', nullable: true })
   answeredAt?: Date;
 
+  @Column({ name: 'parent_id', type: 'uuid', nullable: true })
+  parentId?: string;
+
+  @ManyToOne(() => ListingQuestionEntity, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'parent_id' })
+  parent?: ListingQuestionEntity;
+
+  @Column({ name: 'reply_count', type: 'int', default: 0 })
+  replyCount!: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

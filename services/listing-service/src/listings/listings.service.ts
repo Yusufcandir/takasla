@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { ListingEntity } from './listing.entity';
 import { ListingImageEntity } from './listing-image.entity';
 import { ListingQuestionEntity } from './listing-question.entity';
@@ -199,9 +199,26 @@ export class ListingsService {
   }
 
   // Q&A
-  async getQuestions(listingId: string): Promise<ListingQuestionEntity[]> {
+  async getQuestions(listingId: string): Promise<any[]> {
+    const roots = await this.questionRepo.find({
+      where: { listingId, parentId: IsNull() },
+      order: { createdAt: 'DESC' },
+    });
+    for (const root of roots) {
+      if (root.replyCount > 0) {
+        const firstReply = await this.questionRepo.findOne({
+          where: { parentId: root.id },
+          order: { createdAt: 'ASC' },
+        });
+        (root as any).firstReply = firstReply || null;
+      }
+    }
+    return roots;
+  }
+
+  async getThread(listingId: string, questionId: string): Promise<ListingQuestionEntity[]> {
     return this.questionRepo.find({
-      where: { listingId },
+      where: { listingId, parentId: questionId },
       order: { createdAt: 'ASC' },
     });
   }
@@ -209,6 +226,23 @@ export class ListingsService {
   async askQuestion(listingId: string, askerId: string, question: string): Promise<ListingQuestionEntity> {
     await this.findById(listingId); // verify exists
     return this.questionRepo.save({ listingId, askerId, question });
+  }
+
+  async addReply(listingId: string, questionId: string, userId: string, content: string): Promise<ListingQuestionEntity> {
+    const listing = await this.findById(listingId);
+    const parent = await this.questionRepo.findOne({ where: { id: questionId, listingId, parentId: IsNull() } });
+    if (!parent) throw new NotFoundException('Question not found');
+    if (userId !== parent.askerId && userId !== listing.userId) {
+      throw new ForbiddenException('Only the asker or listing owner can reply');
+    }
+    const reply = await this.questionRepo.save({
+      listingId,
+      askerId: userId,
+      question: content,
+      parentId: questionId,
+    });
+    await this.questionRepo.increment({ id: questionId }, 'replyCount', 1);
+    return reply;
   }
 
   async answerQuestion(listingId: string, questionId: string, userId: string, answer: string): Promise<ListingQuestionEntity> {

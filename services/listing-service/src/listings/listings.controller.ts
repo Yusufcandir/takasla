@@ -4,7 +4,7 @@ import { JwtAuthGuard, CurrentUser, Public, StorageService } from '@exchange/com
 import { JwtPayload, ItemCondition } from '@exchange/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { ListingsService } from './listings.service';
-import { CreateListingDto, UpdateListingDto, BoostListingDto, AskQuestionDto, AnswerQuestionDto } from './dto';
+import { CreateListingDto, UpdateListingDto, BoostListingDto, AskQuestionDto, AnswerQuestionDto, AddReplyDto } from './dto';
 import { memoryStorage } from 'multer';
 import { join } from 'path';
 import { Response } from 'express';
@@ -169,6 +169,23 @@ export class ListingsController {
     @Body() body: AnswerQuestionDto,
   ) {
     return this.listingsService.answerQuestion(id, questionId, user.sub, body.answer);
+  }
+
+  @Public()
+  @Get(':id/questions/:questionId/thread')
+  async getThread(@Param('id') id: string, @Param('questionId') questionId: string) {
+    return this.listingsService.getThread(id, questionId);
+  }
+
+  @Post(':id/questions/:questionId/replies')
+  @UseGuards(JwtAuthGuard)
+  async addReply(
+    @Param('id') id: string,
+    @Param('questionId') questionId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: AddReplyDto,
+  ) {
+    return this.listingsService.addReply(id, questionId, user.sub, body.content);
   }
 
   // --- Favorites ---

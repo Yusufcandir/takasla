@@ -205,10 +205,13 @@ export const publicProfileApi = {
 };
 
 // Q&A
+export type QAQuestion = { id: string; listingId: string; askerId: string; question: string; answer?: string; answeredAt?: string; createdAt: string; parentId?: string; replyCount: number; firstReply?: QAQuestion | null };
 export const questionsApi = {
-  getAll: (listingId: string) => api.get<{ id: string; listingId: string; askerId: string; question: string; answer?: string; answeredAt?: string; createdAt: string }[]>(`/listings/${listingId}/questions`),
+  getAll: (listingId: string) => api.get<QAQuestion[]>(`/listings/${listingId}/questions`),
   ask: (listingId: string, question: string) => api.post<{ id: string }>(`/listings/${listingId}/questions`, { question }),
   answer: (listingId: string, questionId: string, answer: string) => api.patch<{ id: string }>(`/listings/${listingId}/questions/${questionId}/answer`, { answer }),
+  getThread: (listingId: string, questionId: string) => api.get<QAQuestion[]>(`/listings/${listingId}/questions/${questionId}/thread`),
+  reply: (listingId: string, questionId: string, content: string) => api.post<{ id: string }>(`/listings/${listingId}/questions/${questionId}/replies`, { content }),
 };
 
 // Favorites
