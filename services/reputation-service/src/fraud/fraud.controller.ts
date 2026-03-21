@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard, CurrentUser, Roles } from '@exchange/common';
 import { JwtPayload } from '@exchange/shared-types';
 import { FraudDetectionService } from './fraud-detection.service';
@@ -22,7 +22,11 @@ export class FraudController {
 
   @Post(':id/review')
   @Roles('moderator', 'admin')
-  async review(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.fraudService.reviewFlag(id, user.sub);
+  async review(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { notes?: string },
+  ) {
+    return this.fraudService.reviewFlag(id, user.sub, body?.notes);
   }
 }

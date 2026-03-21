@@ -114,4 +114,12 @@ export class AuthService {
 
     return { accessToken, refreshToken: newRefreshToken, userId: user.id };
   }
+
+  async banUser(userId: string, bannedBy: string): Promise<void> {
+    // Get user email BEFORE deletion for the ban notification
+    const user = await this.usersService.findById(userId);
+    // Send ban email (fire-and-forget — don't block the ban on email delivery)
+    this.emailService.sendBanNotificationEmail(user.email).catch(() => {});
+    await this.usersService.banById(userId, bannedBy);
+  }
 }

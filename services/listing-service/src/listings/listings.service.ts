@@ -342,7 +342,22 @@ export class ListingsService {
     report.status = status as ReportStatus;
     report.reviewedBy = adminId;
     if (adminNotes) report.adminNotes = adminNotes;
-    return this.reportRepo.save(report);
+    const saved = await this.reportRepo.save(report);
+
+    await this.rabbitMQService.publish(ROUTING_KEYS.MODERATION.LISTING_REPORT_REVIEWED, {
+      eventId: uuidv4(),
+      correlationId: uuidv4(),
+      idempotencyKey: `report-review:${id}`,
+      reportId: id,
+      listingOwnerId: report.listing?.userId,
+      listingId: report.listingId,
+      listingTitle: report.listing?.title || 'Unknown',
+      reportReason: report.reason,
+      status,
+      adminNotes,
+    });
+
+    return saved;
   }
 
   async getWarningCountForUser(userId: string): Promise<{ count: number; reports: { listingId: string; listingTitle: string; reason: string; adminNotes?: string; createdAt: Date }[] }> {
@@ -370,6 +385,15 @@ export class ListingsService {
     listing.status = ListingStatus.ARCHIVED;
     await this.listingRepo.save(listing);
     this.logger.log(`Listing ${listingId} archived by admin`);
+
+    await this.rabbitMQService.publish(ROUTING_KEYS.MODERATION.LISTING_ARCHIVED, {
+      eventId: uuidv4(),
+      correlationId: uuidv4(),
+      idempotencyKey: `admin-archive:${listingId}`,
+      listingId,
+      listingOwnerId: listing.userId,
+      listingTitle: listing.title,
+    });
   }
 
   private async lockListing(listingId: string, tradeId: string): Promise<void> {

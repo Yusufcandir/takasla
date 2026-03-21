@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 import { FraudFlagEntity } from './fraud-flag.entity';
 import { CompletedTradeEntity } from '../ratings/completed-trade.entity';
 import { RatingEntity } from '../ratings/rating.entity';
@@ -189,12 +190,27 @@ export class FraudDetectionService implements OnModuleInit {
     return this.flagRepo.find({ where: { reviewed: false }, order: { createdAt: 'ASC' } });
   }
 
-  async reviewFlag(flagId: string, reviewerId: string): Promise<FraudFlagEntity> {
+  async reviewFlag(flagId: string, reviewerId: string, notes?: string): Promise<FraudFlagEntity> {
     const flag = await this.flagRepo.findOneBy({ id: flagId });
     if (!flag) throw new Error('Flag not found');
     flag.reviewed = true;
     flag.reviewedBy = reviewerId;
     flag.reviewedAt = new Date();
-    return this.flagRepo.save(flag);
+    if (notes) flag.reviewNotes = notes;
+    const saved = await this.flagRepo.save(flag);
+
+    await this.rabbitMQService.publish(ROUTING_KEYS.MODERATION.FRAUD_FLAG_REVIEWED, {
+      eventId: uuidv4(),
+      correlationId: uuidv4(),
+      idempotencyKey: `fraud-review:${flagId}`,
+      flagId: flag.id,
+      userId: flag.userId,
+      flagType: flag.flagType,
+      description: flag.description,
+      reviewNotes: notes,
+      evidence: flag.evidence,
+    });
+
+    return saved;
   }
 }

@@ -58,6 +58,12 @@ export const ROUTING_KEYS = {
     FAILED: 'payment.failed',
     BOOST_SUCCEEDED: 'payment.boost.succeeded',
   },
+  MODERATION: {
+    FRAUD_FLAG_REVIEWED: 'moderation.fraud_flag.reviewed',
+    LISTING_REPORT_REVIEWED: 'moderation.listing_report.reviewed',
+    LISTING_ARCHIVED: 'moderation.listing.archived',
+    DISPUTE_RESOLVED: 'moderation.dispute.resolved',
+  },
 } as const;
 
 export const QUEUES = {
@@ -78,4 +84,5 @@ export const QUEUES = {
   FRAUD_ON_LISTING: 'fraud.on-listing-events',
   TRADE_ON_CENTER: 'trade.on-center-events',
   SHIPPING_ON_CENTER: 'shipping.on-center-events',
+  AUTH_ON_MODERATION: 'auth.on-moderation-events',
 } as const;

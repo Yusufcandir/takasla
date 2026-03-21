@@ -79,6 +79,6 @@ export class AuthController {
   @Post('users/:id/ban')
   @HttpCode(HttpStatus.NO_CONTENT)
   async banUser(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    await this.usersService.banById(id, user.sub);
+    await this.authService.banUser(id, user.sub);
   }
 }

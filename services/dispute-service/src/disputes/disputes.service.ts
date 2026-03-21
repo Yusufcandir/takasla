@@ -148,6 +148,20 @@ export class DisputesService {
       compensationAmount,
     });
 
+    // Notify dispute opener via email
+    await this.rabbitMQService.publish(ROUTING_KEYS.MODERATION.DISPUTE_RESOLVED, {
+      eventId: uuidv4(),
+      correlationId: uuidv4(),
+      idempotencyKey: `dispute-notify:${dispute.id}`,
+      disputeId: dispute.id,
+      tradeId: dispute.tradeId,
+      openedBy: dispute.openedBy,
+      resolution,
+      outcomeType,
+      compensationAction,
+      compensationAmount,
+    });
+
     this.logger.log(`Dispute resolved: ${dispute.id} -> ${outcomeType}/${compensationAction}`);
     return saved;
   }

@@ -32,6 +32,9 @@ export class FraudFlagEntity {
   @Column({ name: 'reviewed_at', type: 'timestamptz', nullable: true })
   reviewedAt?: Date;
 
+  @Column({ name: 'review_notes', type: 'text', nullable: true })
+  reviewNotes?: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }
