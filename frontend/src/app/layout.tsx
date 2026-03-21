@@ -125,7 +125,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               {/* Logo */}
               <Link href="/" className="flex items-center gap-2.5 group shrink-0">
                 <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm group-hover:bg-emerald-400 transition-colors">
-                  Ex
+                  Tk
                 </div>
                 <span className="text-white font-semibold text-lg tracking-tight hidden sm:block">
                   {t('nav.logo_text')}
@@ -553,7 +553,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-emerald-500 rounded flex items-center justify-center text-white font-bold text-xs">
-                Ex
+                Tk
               </div>
               <span className="text-slate-400 text-sm">{t('footer.tagline')}</span>
             </div>

@@ -1,6 +1,6 @@
 {
-  "nav.page_title": "Exchange Platform - Secure Goods Trading",
-  "nav.logo_text": "Exchange",
+  "nav.page_title": "Takasla - Secure Goods Trading",
+  "nav.logo_text": "Takasla",
   "nav.listings": "Listings",
   "nav.trades": "Trades",
   "nav.browse_listings": "Browse Listings",
@@ -18,7 +18,7 @@
   "nav.navigation": "Navigation",
   "nav.create": "Create",
   "nav.account": "Account",
-  "footer.tagline": "Secure Goods Exchange Platform",
+  "footer.tagline": "Secure Goods Trading Platform",
   "footer.features": "Risk-based escrow \u2022 Blockchain certificates \u2022 Trust scoring",
 
   "home.welcome_back": "Welcome back, {{name}}!",

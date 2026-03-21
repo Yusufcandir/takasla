@@ -35,8 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <title>Admin Panel — Exchange</title>
-        <meta name="description" content="Exchange platform administration" />
+        <title>Admin Panel — Takasla</title>
+        <meta name="description" content="Takasla platform administration" />
       </head>
       <body className="bg-slate-50 text-slate-900">
         {!isLoginPage && (
