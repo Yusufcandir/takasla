@@ -320,8 +320,18 @@ export default function ListingDetailPage() {
           {/* Image Gallery */}
           {images.length > 0 && (
             <div>
-              <div className="aspect-[4/3] rounded-xl overflow-hidden bg-slate-100 border border-slate-200 mb-2">
+              <div className="aspect-[4/3] rounded-xl overflow-hidden bg-slate-100 border border-slate-200 mb-2 relative">
                 <img src={getImageUrl(images[activeImage].url)} alt={listing.title} className="w-full h-full object-cover" />
+                {images[activeImage]?.aiScore != null && images[activeImage].aiScore! >= 0.75 && (
+                  <div className="absolute top-3 left-3 z-10">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-pink-100 text-pink-700 border border-pink-200 shadow-sm">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      {t('listing_detail.ai_warning')}
+                    </span>
+                  </div>
+                )}
               </div>
               {images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
@@ -333,6 +343,19 @@ export default function ListingDetailPage() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* AI-generated warning */}
+          {images.some((img) => img.aiScore != null && img.aiScore! >= 0.75) && (
+            <div className="bg-pink-50 border border-pink-200 rounded-lg px-4 py-3 text-sm text-pink-700 flex items-start gap-2">
+              <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <div>
+                <span className="font-medium">{t('listing_detail.ai_warning_title')}</span>
+                <p className="text-xs text-pink-600 mt-0.5">{t('listing_detail.ai_warning_desc')}</p>
+              </div>
             </div>
           )}
 

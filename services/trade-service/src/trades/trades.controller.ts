@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Param, Body, Query, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, Res } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard, CurrentUser, Roles, Public, StorageService } from '@exchange/common';
+import { JwtAuthGuard, CurrentUser, Roles, Public, StorageService, SightEngineService } from '@exchange/common';
 import { JwtPayload, TradeState, RiskLevel } from '@exchange/shared-types';
 import { TradesService } from './trades.service';
 import { TradeStateMachine } from '../state-machine/trade-state-machine';
@@ -22,6 +22,7 @@ export class TradesController {
     private readonly storageService: StorageService,
     private readonly exifService: ExifService,
     private readonly imageHashService: ImageHashService,
+    private readonly sightEngineService: SightEngineService,
   ) {}
 
   @Get()
@@ -90,8 +91,10 @@ export class TradesController {
 
         // Compute perceptual hash for images (anti-scam: duplicate detection)
         let phash: string | null = null;
+        let aiScore: number | null = null;
         if (file.mimetype.startsWith('image/')) {
           phash = await this.imageHashService.computePerceptualHash(file.buffer);
+          aiScore = await this.sightEngineService.checkImage(file.buffer, file.originalname);
         }
 
         return {
@@ -102,6 +105,7 @@ export class TradesController {
           hash,
           exif,
           phash,
+          aiScore,
         };
       }),
     );

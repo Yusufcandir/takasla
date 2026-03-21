@@ -12,6 +12,7 @@ export interface ListingImage {
   url: string;
   sortOrder: number;
   listingId: string;
+  aiScore?: number;
 }
 
 export interface Listing {

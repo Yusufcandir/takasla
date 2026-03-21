@@ -174,8 +174,9 @@ export const listingsApi = {
     minExchangeValue?: number;
     maxExchangeValue?: number;
     preferredCategories?: string[];
+    imageAiScores?: Record<string, number>;
   }) => api.post<Listing>('/listings', data),
-  uploadImages: async (files: File[]): Promise<{ url: string; originalName: string; size: number }[]> => {
+  uploadImages: async (files: File[]): Promise<{ url: string; originalName: string; size: number; aiScore?: number }[]> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     const formData = new FormData();
     const compressed = await Promise.all(files.map(compressImage));

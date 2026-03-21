@@ -7,3 +7,4 @@ export * from './health';
 export * from './idempotency';
 export * from './storage';
 export * from './logging';
+export * from './sightengine';

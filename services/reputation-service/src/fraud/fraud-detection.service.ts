@@ -74,6 +74,36 @@ export class FraudDetectionService implements OnModuleInit {
         );
       },
     );
+
+    // Create fraud flags when AI-generated images are detected in listings
+    await this.rabbitMQService.subscribe(
+      QUEUES.FRAUD_ON_LISTING,
+      [ROUTING_KEYS.LISTING.AI_IMAGE_DETECTED],
+      async (msg: Record<string, unknown>) => {
+        const { listingId, userId, flaggedImages } = msg as {
+          listingId: string;
+          userId: string;
+          flaggedImages: Array<{ url: string; aiScore: number }>;
+        };
+
+        const existing = await this.flagRepo.findOne({
+          where: { userId, flagType: 'ai_generated_image', relatedTradeId: listingId },
+        });
+        if (existing) return;
+
+        const maxScore = Math.max(...flaggedImages.map((f) => f.aiScore));
+
+        await this.flagRepo.save({
+          userId,
+          flagType: 'ai_generated_image',
+          description: `Listing contains ${flaggedImages.length} image(s) flagged as AI-generated (max score: ${maxScore.toFixed(2)})`,
+          evidence: { listingId, flaggedImages, maxScore },
+          relatedTradeId: listingId,
+        });
+
+        this.logger.warn(`Fraud flag created: AI-generated images by user ${userId} in listing ${listingId}`);
+      },
+    );
   }
 
   // Detect circular trading: A↔B repeated trades (>= 3 trades between same pair)

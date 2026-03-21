@@ -88,9 +88,10 @@ export class ListingsService {
       minExchangeValue?: number;
       maxExchangeValue?: number;
       preferredCategories?: string[];
+      imageAiScores?: Record<string, number>;
     },
   ): Promise<ListingEntity> {
-    const { imageUrls = [], ...fields } = body;
+    const { imageUrls = [], imageAiScores, ...fields } = body;
     const listing = await this.listingRepo.save({
       userId,
       ...fields,
@@ -102,8 +103,29 @@ export class ListingsService {
         listingId: listing.id,
         url,
         sortOrder: i,
+        aiScore: imageAiScores?.[url] ?? undefined,
       }));
       await this.imageRepo.save(images);
+
+      // Check for AI-generated images and publish fraud event
+      const AI_THRESHOLD = 0.75;
+      const flaggedImages = images.filter(
+        (img) => img.aiScore !== undefined && img.aiScore !== null && img.aiScore >= AI_THRESHOLD,
+      );
+      if (flaggedImages.length > 0) {
+        await this.rabbitMQService.publish(ROUTING_KEYS.LISTING.AI_IMAGE_DETECTED, {
+          eventId: uuidv4(),
+          correlationId: uuidv4(),
+          idempotencyKey: `ai-image:${listing.id}`,
+          listingId: listing.id,
+          userId,
+          flaggedImages: flaggedImages.map((img) => ({
+            url: img.url,
+            aiScore: img.aiScore,
+          })),
+        });
+        this.logger.warn(`Listing ${listing.id} flagged: ${flaggedImages.length} AI-generated image(s)`);
+      }
     }
 
     await this.rabbitMQService.publish(ROUTING_KEYS.LISTING.CREATED, {

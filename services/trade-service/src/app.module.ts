@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
-import { DatabaseModule, RabbitMQModule, RedisModule, HealthModule, OutboxModule, StorageModule } from '@exchange/common';
+import { DatabaseModule, RabbitMQModule, RedisModule, HealthModule, OutboxModule, StorageModule, SightEngineModule } from '@exchange/common';
 import { TradesModule } from './trades/trades.module';
 import { StateMachineModule } from './state-machine/state-machine.module';
 import { SagaModule } from './saga/saga.module';
@@ -36,6 +36,7 @@ import { ProofImageHashEntity } from './proofs/proof-image-hash.entity';
     RedisModule.forRoot(),
     OutboxModule,
     StorageModule.forRoot(),
+    SightEngineModule.forRoot(),
     HealthModule,
     TradesModule,
     StateMachineModule,

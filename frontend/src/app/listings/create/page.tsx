@@ -229,10 +229,16 @@ export default function CreateListingPage() {
     setLoading(true);
     try {
       let imageUrls: string[] = [];
+      let imageAiScores: Record<string, number> | undefined;
       if (imageFiles.length > 0) {
         setUploading(true);
         const uploaded = await listingsApi.uploadImages(imageFiles);
         imageUrls = uploaded.map((u) => u.url);
+        const scores: Record<string, number> = {};
+        uploaded.forEach((u) => {
+          if (u.aiScore != null) scores[u.url] = u.aiScore;
+        });
+        if (Object.keys(scores).length > 0) imageAiScores = scores;
         setUploading(false);
       }
       const listing = await listingsApi.create({
@@ -242,6 +248,7 @@ export default function CreateListingPage() {
         categoryId,
         condition,
         imageUrls,
+        imageAiScores,
         location: [selectedNeighbourhood, selectedCity, selectedCountry?.name].filter(Boolean).join(', ') || undefined,
         shippingOption,
         priceFlexibility,

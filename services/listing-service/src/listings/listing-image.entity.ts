@@ -19,6 +19,9 @@ export class ListingImageEntity {
   @Column({ name: 'sort_order', default: 0 })
   sortOrder!: number;
 
+  @Column({ name: 'ai_score', type: 'float', nullable: true })
+  aiScore?: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

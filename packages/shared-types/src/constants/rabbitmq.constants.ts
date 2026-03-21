@@ -10,6 +10,7 @@ export const ROUTING_KEYS = {
     CREATED: 'listing.created',
     LOCKED: 'listing.locked',
     UNLOCKED: 'listing.unlocked',
+    AI_IMAGE_DETECTED: 'listing.fraud.ai_image',
   },
   OFFER: {
     CREATED: 'offer.created',
@@ -74,6 +75,7 @@ export const QUEUES = {
   LISTING_ON_PAYMENT: 'listing.on-payment-events',
   PAYMENT_ON_DISPUTE: 'payment.on-dispute-events',
   FRAUD_ON_TRADE: 'fraud.on-trade-proof-events',
+  FRAUD_ON_LISTING: 'fraud.on-listing-events',
   TRADE_ON_CENTER: 'trade.on-center-events',
   SHIPPING_ON_CENTER: 'shipping.on-center-events',
 } as const;

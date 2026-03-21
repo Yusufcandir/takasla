@@ -343,6 +343,8 @@ services:
       - R2_BUCKET_NAME=${R2_BUCKET_NAME:-exchange-uploads}
       - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
       - PAYMENT_SERVICE_URL=http://payment-service:3010
+      - SIGHTENGINE_API_USER=${SIGHTENGINE_API_USER:-}
+      - SIGHTENGINE_API_SECRET=${SIGHTENGINE_API_SECRET:-}
       - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-listing:
@@ -414,6 +416,8 @@ services:
       - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
       - LISTING_SERVICE_URL=http://listing-service:3003
       - USER_SERVICE_URL=http://user-service:3002
+      - SIGHTENGINE_API_USER=${SIGHTENGINE_API_USER:-}
+      - SIGHTENGINE_API_SECRET=${SIGHTENGINE_API_SECRET:-}
       - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-trade:

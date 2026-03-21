@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, UseInterceptors, UploadedFiles, Res, NotFoundException, ForbiddenException, HttpCode, HttpStatus } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard, CurrentUser, Public, StorageService } from '@exchange/common';
+import { JwtAuthGuard, CurrentUser, Public, StorageService, SightEngineService } from '@exchange/common';
 import { JwtPayload, ItemCondition } from '@exchange/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { ListingsService } from './listings.service';
@@ -21,6 +21,7 @@ export class ListingsController {
     private readonly listingsService: ListingsService,
     private readonly config: ConfigService,
     private readonly storageService: StorageService,
+    private readonly sightEngineService: SightEngineService,
   ) {}
 
   @Public()
@@ -157,10 +158,18 @@ export class ListingsController {
     const results = await Promise.all(
       (files || []).map(async (file) => {
         const result = await this.storageService.upload('listings', file.buffer, file.originalname, file.mimetype);
+
+        // Check for AI-generated content (returns null if unconfigured or on error)
+        let aiScore: number | null = null;
+        if (file.mimetype.startsWith('image/')) {
+          aiScore = await this.sightEngineService.checkImage(file.buffer, file.originalname);
+        }
+
         return {
           url: result.url || `/api/listings/uploads/${result.key.split('/').pop()}`,
           originalName: file.originalname,
           size: file.size,
+          aiScore,
         };
       }),
     );

@@ -70,6 +70,9 @@ export class CreateListingDto {
   @IsString({ each: true })
   @IsOptional()
   preferredCategories?: string[];
+
+  @IsOptional()
+  imageAiScores?: Record<string, number>;
 }
 
 export class UpdateListingDto {

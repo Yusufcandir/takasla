@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { join } from 'path';
-import { DatabaseModule, RabbitMQModule, HealthModule, StorageModule } from '@exchange/common';
+import { DatabaseModule, RabbitMQModule, HealthModule, StorageModule, SightEngineModule } from '@exchange/common';
 import { ListingsModule } from './listings/listings.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ListingEntity } from './listings/listing.entity';
@@ -25,6 +25,7 @@ import { CategoryEntity } from './categories/category.entity';
     }),
     RabbitMQModule.forRoot(),
     StorageModule.forRoot(),
+    SightEngineModule.forRoot(),
     HealthModule,
     ListingsModule,
     CategoriesModule,

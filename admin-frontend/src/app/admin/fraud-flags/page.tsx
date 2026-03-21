@@ -11,6 +11,8 @@ const FLAG_TYPE_STYLES: Record<string, { label: string; color: string }> = {
   rapid_rating_exchange: { label: 'Rapid Rating Exchange', color: 'bg-purple-50 text-purple-700' },
   same_address: { label: 'Same Address', color: 'bg-blue-50 text-blue-700' },
   velocity_abuse: { label: 'Velocity Abuse', color: 'bg-red-50 text-red-700' },
+  duplicate_proof: { label: 'Duplicate Proof', color: 'bg-orange-50 text-orange-700' },
+  ai_generated_image: { label: 'AI-Generated Image', color: 'bg-pink-50 text-pink-700' },
 };
 
 export default function AdminFraudFlagsPage() {
@@ -135,6 +137,9 @@ export default function AdminFraudFlagsPage() {
                           <> &middot; Related: <span className="font-mono">{flag.relatedUserId.slice(0, 12)}...</span></>
                         )}
                       </p>
+                      {flag.description && (
+                        <p className="text-sm text-slate-600 mt-1">{flag.description}</p>
+                      )}
                       {/* Evidence details */}
                       {flag.evidence && Object.keys(flag.evidence).length > 0 && (
                         <div className="mt-2 text-xs text-slate-500 bg-slate-50 rounded px-3 py-2 font-mono">

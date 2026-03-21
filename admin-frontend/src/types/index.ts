@@ -113,6 +113,7 @@ export interface FraudFlag {
   id: string;
   userId: string;
   flagType: string;
+  description?: string;
   evidence: Record<string, unknown>;
   relatedUserId?: string;
   reviewed: boolean;
