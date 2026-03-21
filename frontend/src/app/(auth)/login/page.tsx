@@ -56,7 +56,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-navy-900 rounded-xl flex items-center justify-center text-white font-bold mx-auto mb-4">
-            Ex
+            Tk
           </div>
           <h1 className="text-2xl font-bold text-slate-900">{t('auth.login_title')}</h1>
           <p className="text-slate-500 text-sm mt-1">{t('auth.login_subtitle')}</p>
