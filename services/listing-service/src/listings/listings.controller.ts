@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, UseInterceptors, UploadedFiles, Res, NotFoundException, ForbiddenException, HttpCode, HttpStatus } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard, CurrentUser, Public, StorageService, SightEngineService } from '@exchange/common';
+import { JwtAuthGuard, CurrentUser, Public, Roles, StorageService, SightEngineService } from '@exchange/common';
 import { JwtPayload, ItemCondition } from '@exchange/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { ListingsService } from './listings.service';
@@ -122,6 +122,14 @@ export class ListingsController {
   @UseGuards(JwtAuthGuard)
   async getWarningCount(@Param('userId') userId: string) {
     return this.listingsService.getWarningCountForUser(userId);
+  }
+
+  @Post(':id/admin-archive')
+  @UseGuards(JwtAuthGuard)
+  @Roles('moderator', 'admin')
+  async adminArchiveListing(@Param('id') id: string) {
+    await this.listingsService.archiveListingByAdmin(id);
+    return { message: 'Listing archived' };
   }
 
   @Post('reports/:reportId/archive-listing')

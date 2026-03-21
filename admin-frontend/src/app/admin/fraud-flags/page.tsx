@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { isModeratorOrAdmin } from '@/lib/auth';
-import { adminApi } from '@/lib/api';
+import { adminApi, getImageUrl } from '@/lib/api';
 import type { FraudFlag } from '@/types';
 
 const FLAG_TYPE_STYLES: Record<string, { label: string; color: string }> = {
@@ -15,6 +15,8 @@ const FLAG_TYPE_STYLES: Record<string, { label: string; color: string }> = {
   ai_generated_image: { label: 'AI-Generated Image', color: 'bg-pink-50 text-pink-700' },
 };
 
+type ReviewAction = 'dismiss' | 'archive_listing' | 'warn_user' | 'ban_user';
+
 export default function AdminFraudFlagsPage() {
   const [flags, setFlags] = useState<FraudFlag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,10 +24,17 @@ export default function AdminFraudFlagsPage() {
   const [filter, setFilter] = useState<'all' | 'unreviewed' | 'reviewed'>('unreviewed');
 
   // Review modal state
-  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewingFlag, setReviewingFlag] = useState<FraudFlag | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [reviewAction, setReviewAction] = useState<ReviewAction>('dismiss');
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState('');
+
+  // Warning count for selected user
+  const [warningInfo, setWarningInfo] = useState<{ count: number; reports: { listingTitle: string; reason: string; createdAt: string }[] } | null>(null);
+
+  // Ban confirmation
+  const [confirmBan, setConfirmBan] = useState(false);
 
   useEffect(() => {
     if (!isModeratorOrAdmin()) { window.location.href = '/login'; return; }
@@ -35,19 +44,62 @@ export default function AdminFraudFlagsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleReview = async (flagId: string) => {
-    if (!reviewNotes.trim()) { setReviewError('Please add review notes.'); return; }
+  const openReview = async (flag: FraudFlag) => {
+    setReviewingFlag(flag);
+    setReviewNotes('');
+    setReviewAction('dismiss');
+    setReviewError('');
+    setConfirmBan(false);
+    setWarningInfo(null);
+    // Load warning history
+    try {
+      const info = await adminApi.getWarningCount(flag.userId);
+      setWarningInfo(info);
+    } catch { /* ignore */ }
+  };
+
+  const handleReview = async () => {
+    if (!reviewingFlag) return;
+    if (!reviewNotes.trim() && reviewAction !== 'dismiss') {
+      setReviewError('Please add review notes.');
+      return;
+    }
+
+    // Ban requires double-click confirmation
+    if (reviewAction === 'ban_user' && !confirmBan) {
+      setConfirmBan(true);
+      return;
+    }
+
     setReviewSaving(true);
     setReviewError('');
     try {
-      const updated = await adminApi.reviewFraudFlag(flagId, reviewNotes);
-      setFlags(prev => prev.map(f => f.id === flagId ? updated : f));
-      setReviewingId(null);
-      setReviewNotes('');
+      const listingId = (reviewingFlag.evidence as Record<string, unknown>)?.listingId as string | undefined;
+
+      if (reviewAction === 'archive_listing' && listingId) {
+        await adminApi.archiveListing(listingId);
+      }
+
+      if (reviewAction === 'warn_user' && listingId) {
+        await adminApi.archiveListing(listingId);
+      }
+
+      if (reviewAction === 'ban_user') {
+        if (listingId) {
+          await adminApi.archiveListing(listingId).catch(() => {});
+        }
+        await adminApi.banUser(reviewingFlag.userId);
+      }
+
+      const notes = reviewNotes.trim() || `Action: ${reviewAction}`;
+      const updated = await adminApi.reviewFraudFlag(reviewingFlag.id, notes);
+      setFlags(prev => prev.map(f => f.id === reviewingFlag.id ? updated : f));
+      setReviewingFlag(null);
     } catch (err: unknown) {
-      setReviewError(err instanceof Error ? err.message : 'Failed to review flag');
+      setReviewError(err instanceof Error ? err.message : 'Failed to process action');
     } finally {
       setReviewSaving(false);
+      setConfirmBan(false);
     }
   };
 
@@ -115,6 +167,10 @@ export default function AdminFraudFlagsPage() {
         <div className="space-y-3">
           {filtered.map((flag) => {
             const style = FLAG_TYPE_STYLES[flag.flagType] || { label: flag.flagType, color: 'bg-slate-100 text-slate-700' };
+            const evidence = flag.evidence as Record<string, unknown>;
+            const listingId = evidence?.listingId as string | undefined;
+            const flaggedImages = evidence?.flaggedImages as Array<{ url: string; aiScore: number }> | undefined;
+
             return (
               <div key={flag.id} className={`card px-5 py-4 ${flag.reviewed ? 'opacity-70' : ''}`}>
                 <div className="flex items-start justify-between gap-4">
@@ -140,14 +196,41 @@ export default function AdminFraudFlagsPage() {
                       {flag.description && (
                         <p className="text-sm text-slate-600 mt-1">{flag.description}</p>
                       )}
-                      {/* Evidence details */}
-                      {flag.evidence && Object.keys(flag.evidence).length > 0 && (
+
+                      {/* Show flagged images for AI detection */}
+                      {flaggedImages && flaggedImages.length > 0 && (
+                        <div className="flex gap-2 mt-2">
+                          {flaggedImages.map((img, i) => (
+                            <div key={i} className="relative">
+                              <img
+                                src={getImageUrl(img.url)}
+                                alt=""
+                                className="w-16 h-16 rounded-lg object-cover border border-pink-200"
+                              />
+                              <span className="absolute -top-1 -right-1 text-[9px] font-bold bg-pink-600 text-white rounded-full px-1">
+                                {(img.aiScore * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Show listing link if available */}
+                      {listingId && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Listing: <span className="font-mono">{listingId.slice(0, 12)}...</span>
+                        </p>
+                      )}
+
+                      {/* Non-image evidence */}
+                      {evidence && !flaggedImages && Object.keys(evidence).length > 0 && (
                         <div className="mt-2 text-xs text-slate-500 bg-slate-50 rounded px-3 py-2 font-mono">
-                          {Object.entries(flag.evidence).map(([key, val]) => (
+                          {Object.entries(evidence).map(([key, val]) => (
                             <div key={key}>{key}: {typeof val === 'object' ? JSON.stringify(val) : String(val)}</div>
                           ))}
                         </div>
                       )}
+
                       {flag.reviewNotes && (
                         <div className="mt-2 text-xs text-emerald-700 bg-emerald-50 rounded px-3 py-2">
                           <span className="font-medium">Review notes:</span> {flag.reviewNotes}
@@ -159,7 +242,7 @@ export default function AdminFraudFlagsPage() {
                   <div className="flex-shrink-0">
                     {!flag.reviewed && (
                       <button
-                        onClick={() => { setReviewingId(flag.id); setReviewNotes(''); setReviewError(''); }}
+                        onClick={() => openReview(flag)}
                         className="btn-secondary btn-sm"
                       >
                         Review
@@ -174,32 +257,119 @@ export default function AdminFraudFlagsPage() {
       )}
 
       {/* Review Modal */}
-      {reviewingId && (
+      {reviewingFlag && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-md p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Review Fraud Flag</h3>
+          <div className="card w-full max-w-lg p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">Review Fraud Flag</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              {(FLAG_TYPE_STYLES[reviewingFlag.flagType] || { label: reviewingFlag.flagType }).label}
+              {' '}&middot;{' '}
+              User: <span className="font-mono">{reviewingFlag.userId.slice(0, 12)}...</span>
+            </p>
+
             {reviewError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-3">{reviewError}</div>}
+
+            {/* Warning history */}
+            {warningInfo && (
+              <div className={`rounded-lg px-4 py-3 mb-4 text-sm ${warningInfo.count > 0 ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'}`}>
+                {warningInfo.count === 0 ? (
+                  <p className="font-medium">No previous warnings for this user</p>
+                ) : (
+                  <>
+                    <p className="font-medium">{warningInfo.count} previous warning(s)</p>
+                    {warningInfo.reports.map((r, i) => (
+                      <p key={i} className="text-xs mt-1">&bull; {r.listingTitle} &mdash; {r.reason} ({new Date(r.createdAt).toLocaleDateString()})</p>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="space-y-4">
+              {/* Action selection */}
+              <div>
+                <label className="label mb-2">Action</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setReviewAction('dismiss'); setConfirmBan(false); }}
+                    className={`px-3 py-2 text-sm rounded-lg border text-left ${reviewAction === 'dismiss' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <div className="font-medium">Dismiss</div>
+                    <div className="text-xs opacity-75">No action needed</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReviewAction('archive_listing'); setConfirmBan(false); }}
+                    className={`px-3 py-2 text-sm rounded-lg border text-left ${reviewAction === 'archive_listing' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <div className="font-medium">Delete Listing</div>
+                    <div className="text-xs opacity-75">Archive the listing</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReviewAction('warn_user'); setConfirmBan(false); }}
+                    className={`px-3 py-2 text-sm rounded-lg border text-left ${reviewAction === 'warn_user' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <div className="font-medium">Delete & Warn</div>
+                    <div className="text-xs opacity-75">Archive listing + warn user</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReviewAction('ban_user'); setConfirmBan(false); }}
+                    className={`px-3 py-2 text-sm rounded-lg border text-left ${reviewAction === 'ban_user' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <div className="font-medium">Delete & Ban</div>
+                    <div className="text-xs opacity-75">Archive + ban user permanently</div>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="label">Review Notes</label>
                 <textarea
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
-                  rows={4}
+                  rows={3}
                   placeholder="Describe your findings and actions taken..."
-                  className="input min-h-[100px] resize-y"
-                  required
+                  className="input min-h-[80px] resize-y"
                 />
               </div>
+
+              {/* Ban confirmation warning */}
+              {confirmBan && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+                  <p className="font-medium">Are you sure?</p>
+                  <p className="text-xs mt-1">This will permanently ban this user&apos;s email. Click the button again to confirm.</p>
+                </div>
+              )}
+
               <div className="flex items-center gap-3">
                 <button
                   disabled={reviewSaving}
-                  onClick={() => handleReview(reviewingId)}
-                  className="btn-emerald flex-1"
+                  onClick={handleReview}
+                  className={`flex-1 text-sm font-medium py-2 px-4 rounded-lg disabled:opacity-50 ${
+                    reviewAction === 'ban_user'
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : reviewAction === 'warn_user'
+                      ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                      : reviewAction === 'archive_listing'
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                      : 'btn-emerald'
+                  }`}
                 >
-                  {reviewSaving ? 'Saving...' : 'Mark as Reviewed'}
+                  {reviewSaving ? 'Processing...' :
+                   confirmBan ? 'Confirm Ban' :
+                   reviewAction === 'dismiss' ? 'Dismiss Flag' :
+                   reviewAction === 'archive_listing' ? 'Delete Listing' :
+                   reviewAction === 'warn_user' ? 'Delete & Warn User' :
+                   'Delete & Ban User'}
                 </button>
-                <button onClick={() => { setReviewingId(null); setReviewError(''); }} className="btn-secondary">
+                <button
+                  onClick={() => { setReviewingFlag(null); setReviewError(''); setConfirmBan(false); }}
+                  className="btn-secondary"
+                  disabled={reviewSaving}
+                >
                   Cancel
                 </button>
               </div>

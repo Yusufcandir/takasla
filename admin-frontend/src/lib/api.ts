@@ -153,6 +153,7 @@ export const adminApi = {
   getUsers: () => api.get<UserSummary[]>('/auth/users'),
   deleteUser: (userId: string) => api.delete<void>(`/auth/users/${userId}`),
   banUser: (userId: string) => api.post<void>(`/auth/users/${userId}/ban`, {}),
+  archiveListing: (listingId: string) => api.post<{ message: string }>(`/listings/${listingId}/admin-archive`, {}),
   getFraudFlags: () => api.get<FraudFlag[]>('/fraud-flags'),
   getFraudFlagsByUser: (userId: string) => api.get<FraudFlag[]>(`/fraud-flags/user/${userId}`),
   reviewFraudFlag: (flagId: string, notes: string) =>
