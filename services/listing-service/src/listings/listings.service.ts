@@ -5,7 +5,7 @@ import { ListingEntity } from './listing.entity';
 import { ListingImageEntity } from './listing-image.entity';
 import { ListingQuestionEntity } from './listing-question.entity';
 import { ListingFavoriteEntity } from './listing-favorite.entity';
-import { ListingReportEntity, ReportStatus } from './listing-report.entity';
+import { ListingReportEntity, ReportReason, ReportStatus } from './listing-report.entity';
 import { ListingStatus, ItemCondition, ROUTING_KEYS, QUEUES } from '@exchange/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { RabbitMQService } from '@exchange/common';
@@ -296,7 +296,7 @@ export class ListingsService {
     if (existing) {
       throw new ForbiddenException('You have already reported this listing');
     }
-    return this.reportRepo.save({ listingId, userId, reason, description });
+    return this.reportRepo.save({ listingId, userId, reason: reason as ReportReason, description });
   }
 
   async checkReport(listingId: string, userId: string): Promise<{ reported: boolean }> {
