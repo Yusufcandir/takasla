@@ -211,6 +211,7 @@ function AuthenticatedHome({
 /* ────────────────────────── Marketing Home ───────────────────────────── */
 
 function MarketingHome({ spotlightListings }: { spotlightListings: Listing[] }) {
+  const { t } = useTranslation();
   return (
     <div>
       {/* Hero */}
