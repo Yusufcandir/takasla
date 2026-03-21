@@ -286,7 +286,7 @@ services:
       context: .
       dockerfile: services/user-service/Dockerfile
     volumes:
-      - user-avatars:/app/uploads/avatars
+      - user-uploads:/app/uploads-fallback
     environment:
       - NODE_ENV=production
       - USER_SERVICE_PORT=3002
@@ -323,7 +323,7 @@ services:
       context: .
       dockerfile: services/listing-service/Dockerfile
     volumes:
-      - listing-uploads:/app/uploads
+      - listing-uploads:/app/uploads-fallback
     environment:
       - NODE_ENV=production
       - LISTING_SERVICE_PORT=3003
@@ -391,7 +391,7 @@ services:
       context: .
       dockerfile: services/trade-service/Dockerfile
     volumes:
-      - trade-proof-uploads:/app/proof-uploads
+      - trade-proof-uploads:/app/uploads-fallback
     environment:
       - NODE_ENV=production
       - TRADE_SERVICE_PORT=3005
@@ -692,7 +692,7 @@ volumes:
   pgdata-shipping:
   pgdata-payment:
   trade-proof-uploads:
-  user-avatars:
+  user-uploads:
   listing-uploads:
   pgdata-messaging:
   db-backups:
