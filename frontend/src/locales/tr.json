@@ -133,6 +133,7 @@
   "listing_detail.qa_title": "Sorular & Cevaplar",
   "listing_detail.qa_empty": "Henüz soru yok. İlk soruyu soran siz olun!",
   "listing_detail.qa_seller_answered": "Satıcı cevapladı",
+  "listing_detail.qa_anonymous": "Kullanıcı",
   "listing_detail.qa_answer_placeholder": "Cevabınızı yazın...",
   "listing_detail.qa_post_answer": "Cevap Gönder",
   "listing_detail.qa_cancel": "İptal",

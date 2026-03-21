@@ -54,6 +54,7 @@ export default function ListingDetailPage() {
   const [sellerListings, setSellerListings] = useState<Listing[]>([]);
   const [similarListings, setSimilarListings] = useState<Listing[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [askerProfiles, setAskerProfiles] = useState<Record<string, Profile>>({});
   const [favorited, setFavorited] = useState(false);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [activeImage, setActiveImage] = useState(0);
@@ -108,8 +109,20 @@ export default function ListingDetailPage() {
         );
       }
 
-      // Q&A
-      promises.push(questionsApi.getAll(listingId).then(setQuestions).catch(() => {}));
+      // Q&A + asker profiles
+      promises.push(
+        questionsApi.getAll(listingId).then(async (qs) => {
+          setQuestions(qs);
+          const uniqueAskerIds = [...new Set(qs.map((q) => q.askerId))];
+          const profiles: Record<string, Profile> = {};
+          await Promise.allSettled(
+            uniqueAskerIds.map((id) =>
+              publicProfileApi.getProfile(id).then((p) => { profiles[id] = p; })
+            ),
+          );
+          setAskerProfiles(profiles);
+        }).catch(() => {}),
+      );
 
       // Favorites
       promises.push(favoritesApi.getCount(listingId).then((r) => setFavoriteCount(r.count)).catch(() => {}));
@@ -355,17 +368,26 @@ export default function ListingDetailPage() {
             <h2 className="text-lg font-semibold text-slate-900 mb-4">{t('listing_detail.qa_title')}</h2>
             {questions.length > 0 ? (
               <div className="space-y-4 mb-4">
-                {questions.map((q) => (
+                {questions.map((q) => {
+                  const asker = askerProfiles[q.askerId];
+                  return (
                   <div key={q.id} className="card p-4">
                     <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-0.5">
-                        <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
+                      <Link href={`/profile/${q.askerId}`} className="shrink-0 mt-0.5">
+                        {asker?.avatarUrl ? (
+                          <img src={asker.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center">
+                            <span className="text-xs font-bold text-slate-500">{asker?.displayName?.[0]?.toUpperCase() || '?'}</span>
+                          </div>
+                        )}
+                      </Link>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-900">{q.question}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{new Date(q.createdAt).toLocaleDateString(locale === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' })}</p>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/profile/${q.askerId}`} className="text-sm font-semibold text-slate-900 hover:underline">{asker?.displayName || t('listing_detail.qa_anonymous')}</Link>
+                          <span className="text-xs text-slate-400">{new Date(q.createdAt).toLocaleDateString(locale === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' })}</span>
+                        </div>
+                        <p className="text-sm text-slate-700 mt-0.5">{q.question}</p>
                         {q.answer ? (
                           <div className="mt-3 pl-3 border-l-2 border-emerald-300">
                             <p className="text-sm text-slate-700">{q.answer}</p>
@@ -389,7 +411,8 @@ export default function ListingDetailPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-slate-400 mb-4">{t('listing_detail.qa_empty')}</p>

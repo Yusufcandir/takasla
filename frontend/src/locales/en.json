@@ -133,6 +133,7 @@
   "listing_detail.qa_title": "Questions & Answers",
   "listing_detail.qa_empty": "No questions yet. Be the first to ask!",
   "listing_detail.qa_seller_answered": "Seller answered",
+  "listing_detail.qa_anonymous": "User",
   "listing_detail.qa_answer_placeholder": "Write your answer...",
   "listing_detail.qa_post_answer": "Post Answer",
   "listing_detail.qa_cancel": "Cancel",
