@@ -73,4 +73,12 @@ export class AuthController {
   async deleteUser(@Param('id') id: string) {
     await this.usersService.deleteById(id);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Roles('moderator', 'admin')
+  @Post('users/:id/ban')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async banUser(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    await this.usersService.banById(id, user.sub);
+  }
 }

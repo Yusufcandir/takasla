@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsersService } from '../users/users.service';
@@ -21,6 +21,11 @@ export class AuthService {
   ) {}
 
   async register(email: string, password: string, displayName: string, role: string = 'user') {
+    const banned = await this.usersService.isEmailBanned(email);
+    if (banned) {
+      throw new ForbiddenException('This email address has been banned from the platform');
+    }
+
     const user = await this.usersService.create(email, password, role);
 
     await this.rabbitMQService.publish(ROUTING_KEYS.AUTH.USER_REGISTERED, {

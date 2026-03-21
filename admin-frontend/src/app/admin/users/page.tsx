@@ -17,7 +17,9 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmBanId, setConfirmBanId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [banning, setBanning] = useState(false);
 
   useEffect(() => {
     if (!isModeratorOrAdmin()) { window.location.href = '/login'; return; }
@@ -37,6 +39,19 @@ export default function AdminUsersPage() {
       setError(err instanceof Error ? err.message : 'Failed to delete user');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleBan = async (userId: string) => {
+    setBanning(true);
+    try {
+      await adminApi.banUser(userId);
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setConfirmBanId(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to ban user');
+    } finally {
+      setBanning(false);
     }
   };
 
@@ -74,13 +89,26 @@ export default function AdminUsersPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-red-700">Delete {user.email}?</p>
-                      <p className="text-xs text-slate-500">This cannot be undone.</p>
+                      <p className="text-xs text-slate-500">Account will be removed but they can re-register.</p>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleDelete(user.id)} disabled={deleting} className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg disabled:opacity-50">
                         {deleting ? 'Deleting...' : 'Confirm Delete'}
                       </button>
                       <button onClick={() => setConfirmDeleteId(null)} disabled={deleting} className="btn-secondary text-xs py-1.5">Cancel</button>
+                    </div>
+                  </div>
+                ) : confirmBanId === user.id ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-red-700">Ban {user.email}?</p>
+                      <p className="text-xs text-slate-500">Account will be deleted and this email will be permanently blocked from re-registering.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleBan(user.id)} disabled={banning} className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg disabled:opacity-50">
+                        {banning ? 'Banning...' : 'Confirm Ban'}
+                      </button>
+                      <button onClick={() => setConfirmBanId(null)} disabled={banning} className="btn-secondary text-xs py-1.5">Cancel</button>
                     </div>
                   </div>
                 ) : (
@@ -95,7 +123,8 @@ export default function AdminUsersPage() {
                     <div className="flex items-center gap-3">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ROLE_BADGE[user.role] || 'bg-slate-100 text-slate-600'}`}>{user.role}</span>
                       <span className="text-xs text-slate-400">{new Date(user.createdAt).toLocaleDateString()}</span>
-                      <button onClick={() => setConfirmDeleteId(user.id)} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded">Delete</button>
+                      <button onClick={() => { setConfirmBanId(user.id); setConfirmDeleteId(null); }} className="text-xs text-orange-600 hover:text-orange-800 hover:bg-orange-50 px-2 py-1 rounded">Ban</button>
+                      <button onClick={() => { setConfirmDeleteId(user.id); setConfirmBanId(null); }} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded">Delete</button>
                     </div>
                   </div>
                 )}

@@ -5,6 +5,7 @@ import { DatabaseModule, RabbitMQModule, HealthModule } from '@exchange/common';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { UserEntity } from './users/user.entity';
+import { BannedEmailEntity } from './users/banned-email.entity';
 import { RefreshTokenEntity } from './tokens/refresh-token.entity';
 import { VerificationTokenEntity } from './tokens/verification-token.entity';
 
@@ -12,7 +13,7 @@ import { VerificationTokenEntity } from './tokens/verification-token.entity';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule.forRoot({
-      entities: [UserEntity, RefreshTokenEntity, VerificationTokenEntity],
+      entities: [UserEntity, BannedEmailEntity, RefreshTokenEntity, VerificationTokenEntity],
       migrationsDir: join(__dirname, 'migrations'),
       dbHostEnv: 'AUTH_DB_HOST',
       dbPortEnv: 'AUTH_DB_PORT',

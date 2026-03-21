@@ -152,6 +152,7 @@ export const adminApi = {
   ) => api.post<Dispute>(`/disputes/${disputeId}/resolve`, data),
   getUsers: () => api.get<UserSummary[]>('/auth/users'),
   deleteUser: (userId: string) => api.delete<void>(`/auth/users/${userId}`),
+  banUser: (userId: string) => api.post<void>(`/auth/users/${userId}/ban`, {}),
   getFraudFlags: () => api.get<FraudFlag[]>('/fraud-flags'),
   getFraudFlagsByUser: (userId: string) => api.get<FraudFlag[]>(`/fraud-flags/user/${userId}`),
   reviewFraudFlag: (flagId: string, notes: string) =>

@@ -121,7 +121,7 @@ export default function AdminReportsPage() {
       await adminApi.archiveReportedListing(reviewingReport.id);
       const listingOwnerId = reviewingReport.listing?.userId;
       if (listingOwnerId) {
-        await adminApi.deleteUser(listingOwnerId);
+        await adminApi.banUser(listingOwnerId);
       }
       const notes = reviewNotes.trim() || 'Listing deleted — user banned';
       const updated = await adminApi.reviewReport(reviewingReport.id, 'reviewed', notes);
