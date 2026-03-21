@@ -156,7 +156,7 @@ export default function FavoritesPage() {
                     <div>
                       {listing.category?.name && (
                         <span className="text-xs font-medium text-slate-600">
-                          {listing.category.name}
+                          {t(`category.${listing.category.name}`)}
                         </span>
                       )}
                     </div>
@@ -170,7 +170,7 @@ export default function FavoritesPage() {
                   {(listing.category || listing.location) && (
                     <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                       {listing.category && (
-                        <span className="text-xs text-slate-400">{listing.category.name}</span>
+                        <span className="text-xs text-slate-400">{t(`category.${listing.category.name}`)}</span>
                       )}
                       {listing.location && (
                         <span className="text-xs text-slate-400 flex items-center gap-0.5">

@@ -374,8 +374,8 @@ export default function TradeDetailPage() {
       )}
 
       {/* ========== STATE TIMELINE ========== */}
-      <div className="card p-5 mb-8">
-        <div className="flex items-center justify-between overflow-x-auto">
+      <div className="card p-5 mb-8 overflow-x-auto">
+        <div className="flex items-center" style={{ minWidth: `${TIMELINE_STEPS.length * 80}px` }}>
           {TIMELINE_STEPS.map((step, i) => {
             const isStepActive = (step.states as readonly string[]).includes(trade.state);
             const isPast = !isBranchState && i < currentIndex;
@@ -385,9 +385,9 @@ export default function TradeDetailPage() {
             return (
               <div key={step.key} className="flex items-center flex-1 min-w-0">
                 {/* Step */}
-                <div className="flex flex-col items-center flex-shrink-0">
+                <div className="flex flex-col items-center shrink-0 w-16 sm:w-auto">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                       isCurrent
                         ? 'bg-navy-900 text-white ring-4 ring-navy-900/10'
                         : isPast
@@ -396,14 +396,14 @@ export default function TradeDetailPage() {
                     }`}
                   >
                     {isPast && !isCurrent ? (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
                       i + 1
                     )}
                   </div>
-                  <span className={`text-[10px] mt-1.5 text-center max-w-[72px] leading-tight ${
+                  <span className={`text-[9px] sm:text-[10px] mt-1 sm:mt-1.5 text-center w-16 sm:max-w-[72px] leading-tight ${
                     isCurrent ? 'text-navy-900 font-semibold' : isPast ? 'text-emerald-600' : 'text-slate-400'
                   }`}>
                     {t(`state.${step.key}`)}
@@ -412,7 +412,7 @@ export default function TradeDetailPage() {
 
                 {/* Connector line */}
                 {i < TIMELINE_STEPS.length - 1 && (
-                  <div className={`flex-1 h-0.5 mx-1 mt-[-16px] rounded ${
+                  <div className={`flex-1 h-0.5 mx-0.5 sm:mx-1 mt-[-16px] rounded min-w-[8px] ${
                     isPastOrCurrent && i < currentIndex ? 'bg-emerald-500' : 'bg-slate-200'
                   }`} />
                 )}
@@ -950,10 +950,10 @@ export default function TradeDetailPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
                       <div>
-                        <span className="text-sm font-medium text-slate-700">{event.eventType}</span>
+                        <span className="text-sm font-medium text-slate-700">{t(`event.${event.eventType}`)}</span>
                         {event.fromState && (
                           <span className="text-xs text-slate-400 ml-2">
-                            {event.fromState} → {event.toState}
+                            {t(`state.${event.fromState}`)} → {t(`state.${event.toState}`)}
                           </span>
                         )}
                       </div>

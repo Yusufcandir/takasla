@@ -132,7 +132,7 @@ function AuthenticatedHome({
                     </h3>
                     <div className="flex items-end justify-between">
                       {listing.category?.name && (
-                        <span className="text-xs font-medium text-slate-600">{listing.category.name}</span>
+                        <span className="text-xs font-medium text-slate-600">{t(`category.${listing.category.name}`)}</span>
                       )}
                       {listing.condition && (
                         <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
@@ -295,7 +295,7 @@ function MarketingHome({ spotlightListings }: { spotlightListings: Listing[] }) 
                       </div>
                       <div className="flex items-end justify-between">
                         {listing.category?.name && (
-                          <span className="text-xs font-medium text-slate-600">{listing.category.name}</span>
+                          <span className="text-xs font-medium text-slate-600">{t(`category.${listing.category.name}`)}</span>
                         )}
                         {listing.condition && (
                           <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">

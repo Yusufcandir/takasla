@@ -343,7 +343,7 @@ export default function CreateListingPage() {
             <label className="label">{t('create_listing.category')}</label>
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="input" required>
               <option value="">{t('create_listing.select_category')}</option>
-              {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+              {categories.map((cat) => <option key={cat.id} value={cat.id}>{t(`category.${cat.name}`)}</option>)}
             </select>
             {selectedCategory && selectedCategory.baseFee != null && (
               <p className="text-xs text-slate-500 mt-1.5">

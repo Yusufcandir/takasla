@@ -326,7 +326,7 @@ export default function ListingDetailPage() {
                     {listing.isSpotlight ? t('listing_detail.spotlight_active') : t('listing_detail.featured_active')}
                   </span>
                 )}
-                <span className={STATUS_STYLES[listing.status] || 'badge-slate'}>{listing.status}</span>
+                <span className={STATUS_STYLES[listing.status] || 'badge-slate'}>{t(`common.status_${listing.status}`)}</span>
               </div>
             </div>
 
@@ -349,7 +349,7 @@ export default function ListingDetailPage() {
             {listing.category?.name && (
               <div className="flex items-center justify-between px-5 py-3.5">
                 <span className="text-sm text-slate-500">{t('listing_detail.category')}</span>
-                <span className="text-sm font-semibold text-slate-900">{listing.category.name}</span>
+                <span className="text-sm font-semibold text-slate-900">{t(`category.${listing.category.name}`)}</span>
               </div>
             )}
             {listing.priceFlexibility && (
@@ -367,7 +367,7 @@ export default function ListingDetailPage() {
             {listing.category && (
               <div className="flex items-center justify-between px-5 py-3.5">
                 <span className="text-sm text-slate-500">{t('listing_detail.category')}</span>
-                <span className="badge-navy">{listing.category.name}</span>
+                <span className="badge-navy">{t(`category.${listing.category.name}`)}</span>
               </div>
             )}
             {listing.shippingOption && (
@@ -621,7 +621,7 @@ export default function ListingDetailPage() {
               <>
                 <div className="mb-4">
                   {listing.category?.name && (
-                    <div className="text-sm font-semibold text-slate-700 mb-1">{listing.category.name}</div>
+                    <div className="text-sm font-semibold text-slate-700 mb-1">{t(`category.${listing.category.name}`)}</div>
                   )}
                   {listing.priceFlexibility && (
                     <span className="text-xs text-slate-500">{t(`common.flexibility_${listing.priceFlexibility}`)}</span>
@@ -746,7 +746,7 @@ export default function ListingDetailPage() {
                 </div>
                 <div className="p-2">
                   <p className="text-xs font-medium text-slate-900 truncate">{l.title}</p>
-                  {l.category?.name && <p className="text-xs text-slate-500">{l.category.name}</p>}
+                  {l.category?.name && <p className="text-xs text-slate-500">{t(`category.${l.category.name}`)}</p>}
                 </div>
               </Link>
             ))}
@@ -774,7 +774,7 @@ export default function ListingDetailPage() {
                 </div>
                 <div className="p-3">
                   <p className="text-sm font-medium text-slate-900 truncate">{l.title}</p>
-                  {l.category?.name && <p className="text-xs text-slate-500 mt-0.5">{l.category.name}</p>}
+                  {l.category?.name && <p className="text-xs text-slate-500 mt-0.5">{t(`category.${l.category.name}`)}</p>}
                 </div>
               </Link>
             ))}

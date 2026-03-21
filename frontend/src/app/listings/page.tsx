@@ -174,13 +174,13 @@ function ListingsContent() {
                       </span>
                     )}
                     <span className={STATUS_STYLES[listing.status] || 'badge-slate'}>
-                      {listing.status}
+                      {t(`common.status_${listing.status}`)}
                     </span>
                   </div>
 
                   <div className="flex items-end justify-between">
                     {listing.category?.name && (
-                      <span className="text-xs font-medium text-slate-600">{listing.category.name}</span>
+                      <span className="text-xs font-medium text-slate-600">{t(`category.${listing.category.name}`)}</span>
                     )}
                     {listing.condition && (
                       <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
@@ -192,7 +192,7 @@ function ListingsContent() {
                   {(listing.category || listing.location) && (
                     <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                       {listing.category && (
-                        <span className="text-xs text-slate-400">{listing.category.name}</span>
+                        <span className="text-xs text-slate-400">{t(`category.${listing.category.name}`)}</span>
                       )}
                       {listing.location && (
                         <span className="text-xs text-slate-400 flex items-center gap-0.5">

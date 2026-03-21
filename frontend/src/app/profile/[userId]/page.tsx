@@ -174,7 +174,7 @@ export default function PublicProfilePage() {
                 </div>
                 <div className="p-3">
                   <p className="text-sm font-medium text-slate-900 truncate">{l.title}</p>
-                  {l.category?.name && <p className="text-xs text-slate-500 mt-0.5">{l.category.name}</p>}
+                  {l.category?.name && <p className="text-xs text-slate-500 mt-0.5">{t(`category.${l.category.name}`)}</p>}
                 </div>
               </Link>
             ))}
