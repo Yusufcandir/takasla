@@ -323,6 +323,26 @@ export class ListingsService {
     return this.reportRepo.save(report);
   }
 
+  async getWarningCountForUser(userId: string): Promise<{ count: number; reports: { listingId: string; listingTitle: string; reason: string; adminNotes?: string; createdAt: Date }[] }> {
+    const reports = await this.reportRepo
+      .createQueryBuilder('report')
+      .innerJoinAndSelect('report.listing', 'listing')
+      .where('listing.user_id = :userId', { userId })
+      .andWhere('report.status = :status', { status: ReportStatus.REVIEWED })
+      .orderBy('report.created_at', 'DESC')
+      .getMany();
+    return {
+      count: reports.length,
+      reports: reports.map((r) => ({
+        listingId: r.listingId,
+        listingTitle: r.listing?.title || 'Unknown',
+        reason: r.reason,
+        adminNotes: r.adminNotes,
+        createdAt: r.createdAt,
+      })),
+    };
+  }
+
   async archiveListingByAdmin(listingId: string): Promise<void> {
     const listing = await this.findById(listingId);
     listing.status = ListingStatus.ARCHIVED;

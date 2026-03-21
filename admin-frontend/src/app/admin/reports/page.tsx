@@ -20,6 +20,19 @@ const STATUS_STYLES: Record<string, string> = {
   dismissed: 'bg-slate-100 text-slate-600',
 };
 
+const CONDITION_LABELS: Record<string, string> = {
+  new: 'New',
+  like_new: 'Like New',
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
+};
+
+interface WarningData {
+  count: number;
+  reports: { listingId: string; listingTitle: string; reason: string; adminNotes?: string; createdAt: string }[];
+}
+
 export default function AdminReportsPage() {
   const [reports, setReports] = useState<ListingReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,12 +45,36 @@ export default function AdminReportsPage() {
   const [reviewError, setReviewError] = useState('');
   const [confirmBan, setConfirmBan] = useState(false);
 
+  const [warningData, setWarningData] = useState<WarningData | null>(null);
+  const [warningLoading, setWarningLoading] = useState(false);
+
   useEffect(() => {
     adminApi.getReports()
       .then(setReports)
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const openActionModal = async (report: ListingReport) => {
+    setReviewingReport(report);
+    setReviewNotes('');
+    setReviewError('');
+    setConfirmBan(false);
+    setWarningData(null);
+
+    const sellerId = report.listing?.userId;
+    if (sellerId) {
+      setWarningLoading(true);
+      try {
+        const data = await adminApi.getWarningCount(sellerId);
+        setWarningData(data);
+      } catch {
+        // ignore
+      } finally {
+        setWarningLoading(false);
+      }
+    }
+  };
 
   const handleDismiss = async () => {
     if (!reviewingReport) return;
@@ -101,6 +138,7 @@ export default function AdminReportsPage() {
     setReviewNotes('');
     setReviewError('');
     setConfirmBan(false);
+    setWarningData(null);
   };
 
   const filtered = reports.filter((r) => {
@@ -167,29 +205,27 @@ export default function AdminReportsPage() {
           <p className="text-slate-500">{filter === 'pending' ? 'No pending reports' : 'No reports found'}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filtered.map((report) => {
             const reason = REASON_LABELS[report.reason] || { label: report.reason, color: 'bg-slate-100 text-slate-700' };
             const isExpanded = expandedId === report.id;
-            const listingImage = report.listing?.images?.[0];
+            const listing = report.listing;
+            const images = listing?.images || [];
+            const firstImage = images[0];
 
             return (
               <div key={report.id} className={`bg-white rounded-xl border border-slate-200 overflow-hidden ${report.status !== 'pending' ? 'opacity-70' : ''}`}>
-                {/* Report header row */}
+                {/* Report header — click to expand */}
                 <div
                   className="px-5 py-4 cursor-pointer hover:bg-slate-50/50 transition-colors"
                   onClick={() => setExpandedId(isExpanded ? null : report.id)}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1 min-w-0">
-                      {/* Listing thumbnail */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      {/* Thumbnail */}
                       <div className="w-14 h-14 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
-                        {listingImage ? (
-                          <img
-                            src={getImageUrl(listingImage.url)}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
+                        {firstImage ? (
+                          <img src={getImageUrl(firstImage.url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -205,7 +241,7 @@ export default function AdminReportsPage() {
                           <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${STATUS_STYLES[report.status]}`}>{report.status}</span>
                         </div>
                         <p className="text-sm font-medium text-slate-900 truncate">
-                          {report.listing?.title || `Listing ${report.listingId.slice(0, 8)}...`}
+                          {listing?.title || `Listing ${report.listingId.slice(0, 8)}...`}
                         </p>
                         <p className="text-xs text-slate-500">
                           Reporter: <span className="font-mono">{report.userId.slice(0, 12)}...</span>
@@ -218,13 +254,7 @@ export default function AdminReportsPage() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {report.status === 'pending' && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setReviewingReport(report);
-                            setReviewNotes('');
-                            setReviewError('');
-                            setConfirmBan(false);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); openActionModal(report); }}
                           className="px-3 py-1.5 text-xs font-medium rounded-md bg-amber-500 text-white hover:bg-amber-600 transition-colors"
                         >
                           Take Action
@@ -237,70 +267,108 @@ export default function AdminReportsPage() {
                   </div>
                 </div>
 
-                {/* Expanded listing preview */}
-                {isExpanded && (
-                  <div className="border-t border-slate-100 px-5 py-4 bg-slate-50/50">
-                    <div className="flex gap-4">
-                      {/* Listing images */}
-                      {report.listing?.images && report.listing.images.length > 0 && (
-                        <div className="flex gap-2 flex-shrink-0">
-                          {report.listing.images.slice(0, 3).map((img) => (
-                            <div key={img.id} className="w-20 h-20 rounded-lg overflow-hidden bg-slate-200">
-                              <img
-                                src={getImageUrl(img.url)}
-                                alt=""
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ))}
-                          {report.listing.images.length > 3 && (
-                            <div className="w-20 h-20 rounded-lg bg-slate-200 flex items-center justify-center text-xs text-slate-500 font-medium">
-                              +{report.listing.images.length - 3}
-                            </div>
-                          )}
+                {/* Expanded — Full listing card (matches user frontend) */}
+                {isExpanded && listing && (
+                  <div className="border-t border-slate-200">
+                    {/* Image gallery */}
+                    {images.length > 0 && (
+                      <div className="bg-slate-50">
+                        <div className="aspect-[16/7] overflow-hidden">
+                          <img
+                            src={getImageUrl(images[0].url)}
+                            alt={listing.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        {images.length > 1 && (
+                          <div className="flex gap-1.5 p-3 overflow-x-auto">
+                            {images.map((img) => (
+                              <div key={img.id} className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+                                <img src={getImageUrl(img.url)} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="px-5 py-4">
+                      {/* Title + status */}
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <h3 className="text-lg font-bold text-slate-900">{listing.title}</h3>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          listing.status === 'active' ? 'bg-emerald-50 text-emerald-700' :
+                          listing.status === 'locked' ? 'bg-amber-50 text-amber-700' :
+                          listing.status === 'traded' ? 'bg-blue-50 text-blue-700' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {listing.status}
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      {listing.description && (
+                        <p className="text-sm text-slate-600 leading-relaxed mb-4">{listing.description}</p>
+                      )}
+
+                      {/* Details grid — matches user frontend listing detail card */}
+                      <div className="bg-slate-50 rounded-xl border border-slate-200 divide-y divide-slate-200 mb-4">
+                        {listing.category?.name && (
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <span className="text-sm text-slate-500">Category</span>
+                            <span className="text-sm font-semibold text-slate-900">{listing.category.name}</span>
+                          </div>
+                        )}
+                        {listing.condition && (
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <span className="text-sm text-slate-500">Condition</span>
+                            <span className="text-sm font-medium text-slate-700">{CONDITION_LABELS[listing.condition] || listing.condition}</span>
+                          </div>
+                        )}
+                        {listing.declaredValue !== undefined && (
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <span className="text-sm text-slate-500">Declared Value</span>
+                            <span className="text-sm font-semibold text-slate-900">{Number(listing.declaredValue).toLocaleString()} {listing.currency}</span>
+                          </div>
+                        )}
+                        {listing.location && (
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <span className="text-sm text-slate-500">Location</span>
+                            <span className="text-sm text-slate-700 flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              {listing.location}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <span className="text-sm text-slate-500">Listed</span>
+                          <span className="text-sm text-slate-700">{new Date(listing.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        </div>
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <span className="text-sm text-slate-500">Seller</span>
+                          <span className="text-sm font-mono text-slate-700">{listing.userId.slice(0, 16)}...</span>
+                        </div>
+                      </div>
+
+                      {/* Reporter&apos;s description */}
+                      {report.description && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3">
+                          <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1">Reporter&apos;s description</p>
+                          <p className="text-sm text-red-800">{report.description}</p>
                         </div>
                       )}
 
-                      {/* Listing details */}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-slate-900 mb-1">
-                          {report.listing?.title || 'Unknown listing'}
-                        </h4>
-                        {report.listing?.description && (
-                          <p className="text-xs text-slate-600 line-clamp-2 mb-2">{report.listing.description}</p>
-                        )}
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                          {report.listing?.category && (
-                            <span>Category: <span className="font-medium text-slate-700">{report.listing.category.name}</span></span>
-                          )}
-                          {report.listing?.condition && (
-                            <span>Condition: <span className="font-medium text-slate-700">{report.listing.condition.replace('_', ' ')}</span></span>
-                          )}
-                          {report.listing?.declaredValue && (
-                            <span>Value: <span className="font-medium text-slate-700">{report.listing.declaredValue} {report.listing.currency}</span></span>
-                          )}
-                          <span>Status: <span className="font-medium text-slate-700">{report.listing?.status || 'N/A'}</span></span>
+                      {/* Admin notes (if already resolved) */}
+                      {report.adminNotes && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-1">Admin notes</p>
+                          <p className="text-sm text-emerald-800">{report.adminNotes}</p>
                         </div>
-                        <div className="mt-2 text-xs text-slate-500">
-                          Seller: <span className="font-mono text-slate-600">{report.listing?.userId?.slice(0, 16) || report.listingId.slice(0, 8)}...</span>
-                        </div>
-                      </div>
+                      )}
                     </div>
-
-                    {/* Report description */}
-                    {report.description && (
-                      <div className="mt-3 bg-white rounded-lg border border-slate-200 px-3 py-2">
-                        <p className="text-xs font-medium text-slate-500 mb-0.5">Reporter&apos;s description:</p>
-                        <p className="text-sm text-slate-700">{report.description}</p>
-                      </div>
-                    )}
-
-                    {/* Admin notes (if resolved) */}
-                    {report.adminNotes && (
-                      <div className="mt-2 text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
-                        <span className="font-medium">Admin notes:</span> {report.adminNotes}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -312,27 +380,82 @@ export default function AdminReportsPage() {
       {/* Action Modal */}
       {reviewingReport && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-slate-900 mb-1">Take Action on Report</h3>
+          <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Take Action on Report</h3>
 
-            {/* Listing summary */}
-            <div className="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2.5 mb-4">
-              {reviewingReport.listing?.images?.[0] && (
-                <img
-                  src={getImageUrl(reviewingReport.listing.images[0].url)}
-                  alt=""
-                  className="w-10 h-10 rounded-md object-cover"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">
-                  {reviewingReport.listing?.title || `Listing ${reviewingReport.listingId.slice(0, 8)}...`}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Seller: <span className="font-mono">{reviewingReport.listing?.userId?.slice(0, 12) || '?'}...</span>
-                </p>
+            {/* Listing summary in modal */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4">
+              <div className="flex gap-3">
+                {reviewingReport.listing?.images?.[0] && (
+                  <img
+                    src={getImageUrl(reviewingReport.listing.images[0].url)}
+                    alt=""
+                    className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-slate-900 mb-0.5">
+                    {reviewingReport.listing?.title || `Listing ${reviewingReport.listingId.slice(0, 8)}...`}
+                  </h4>
+                  {reviewingReport.listing?.description && (
+                    <p className="text-xs text-slate-500 line-clamp-2 mb-1">{reviewingReport.listing.description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                    {reviewingReport.listing?.category?.name && (
+                      <span>{reviewingReport.listing.category.name}</span>
+                    )}
+                    {reviewingReport.listing?.condition && (
+                      <span>{CONDITION_LABELS[reviewingReport.listing.condition] || reviewingReport.listing.condition}</span>
+                    )}
+                    {reviewingReport.listing?.declaredValue !== undefined && (
+                      <span>{Number(reviewingReport.listing.declaredValue).toLocaleString()} {reviewingReport.listing.currency}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Seller: <span className="font-mono">{reviewingReport.listing?.userId?.slice(0, 16) || '?'}...</span>
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* Warning history banner */}
+            {warningLoading && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                <span className="text-sm text-slate-500">Checking user history...</span>
+              </div>
+            )}
+            {!warningLoading && warningData && warningData.count > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <span className="text-sm font-bold text-red-800">
+                    This user has {warningData.count} previous warning{warningData.count > 1 ? 's' : ''}!
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {warningData.reports.slice(0, 5).map((w, i) => (
+                    <div key={i} className="text-xs text-red-700 flex items-center gap-2">
+                      <span className="font-mono text-red-400">{new Date(w.createdAt).toLocaleDateString()}</span>
+                      <span className="truncate">&ldquo;{w.listingTitle}&rdquo; — {REASON_LABELS[w.reason]?.label || w.reason}</span>
+                    </div>
+                  ))}
+                  {warningData.reports.length > 5 && (
+                    <p className="text-xs text-red-500 font-medium">...and {warningData.reports.length - 5} more</p>
+                  )}
+                </div>
+              </div>
+            )}
+            {!warningLoading && warningData && warningData.count === 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-4 flex items-center gap-2">
+                <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm text-emerald-700">No previous warnings for this user</span>
+              </div>
+            )}
 
             {/* Report reason */}
             <div className="mb-4">
@@ -383,7 +506,7 @@ export default function AdminReportsPage() {
                 )}
               </button>
 
-              {/* Delete listing & warn user */}
+              {/* Delete listing & warn */}
               <button
                 disabled={!!actionInProgress}
                 onClick={handleDeleteAndWarn}
@@ -401,7 +524,7 @@ export default function AdminReportsPage() {
                 )}
               </button>
 
-              {/* Delete listing & ban user */}
+              {/* Delete listing & ban */}
               <button
                 disabled={!!actionInProgress}
                 onClick={handleDeleteAndBan}

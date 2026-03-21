@@ -117,6 +117,12 @@ export class ListingsController {
     return this.listingsService.reviewReport(reportId, user.sub, body.status, body.adminNotes);
   }
 
+  @Get('reports/warnings/:userId')
+  @UseGuards(JwtAuthGuard)
+  async getWarningCount(@Param('userId') userId: string) {
+    return this.listingsService.getWarningCountForUser(userId);
+  }
+
   @Post('reports/:reportId/archive-listing')
   @UseGuards(JwtAuthGuard)
   async archiveReportedListing(

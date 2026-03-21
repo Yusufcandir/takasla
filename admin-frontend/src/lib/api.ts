@@ -164,6 +164,8 @@ export const adminApi = {
     api.patch<ListingReport>(`/listings/reports/${id}/review`, { status, adminNotes }),
   archiveReportedListing: (reportId: string) =>
     api.post<{ message: string }>(`/listings/reports/${reportId}/archive-listing`, {}),
+  getWarningCount: (userId: string) =>
+    api.get<{ count: number; reports: { listingId: string; listingTitle: string; reason: string; adminNotes?: string; createdAt: string }[] }>(`/listings/reports/warnings/${userId}`),
 };
 
 export const centersApi = {
