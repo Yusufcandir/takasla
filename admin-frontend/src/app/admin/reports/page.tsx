@@ -47,6 +47,7 @@ export default function AdminReportsPage() {
 
   const [warningData, setWarningData] = useState<WarningData | null>(null);
   const [warningLoading, setWarningLoading] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     adminApi.getReports()
@@ -267,107 +268,97 @@ export default function AdminReportsPage() {
                   </div>
                 </div>
 
-                {/* Expanded — Full listing card (matches user frontend) */}
+                {/* Expanded listing details */}
                 {isExpanded && listing && (
-                  <div className="border-t border-slate-200">
-                    {/* Image gallery */}
-                    {images.length > 0 && (
-                      <div className="bg-slate-50">
-                        <div className="aspect-[16/7] overflow-hidden">
-                          <img
-                            src={getImageUrl(images[0].url)}
-                            alt={listing.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        {images.length > 1 && (
-                          <div className="flex gap-1.5 p-3 overflow-x-auto">
-                            {images.map((img) => (
-                              <div key={img.id} className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
-                                <img src={getImageUrl(img.url)} alt="" className="w-full h-full object-cover" />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="px-5 py-4">
-                      {/* Title + status */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <h3 className="text-lg font-bold text-slate-900">{listing.title}</h3>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
-                          listing.status === 'active' ? 'bg-emerald-50 text-emerald-700' :
-                          listing.status === 'locked' ? 'bg-amber-50 text-amber-700' :
-                          listing.status === 'traded' ? 'bg-blue-50 text-blue-700' :
-                          'bg-slate-100 text-slate-600'
-                        }`}>
-                          {listing.status}
-                        </span>
-                      </div>
-
-                      {/* Description */}
-                      {listing.description && (
-                        <p className="text-sm text-slate-600 leading-relaxed mb-4">{listing.description}</p>
-                      )}
-
-                      {/* Details grid — matches user frontend listing detail card */}
-                      <div className="bg-slate-50 rounded-xl border border-slate-200 divide-y divide-slate-200 mb-4">
-                        {listing.category?.name && (
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <span className="text-sm text-slate-500">Category</span>
-                            <span className="text-sm font-semibold text-slate-900">{listing.category.name}</span>
-                          </div>
-                        )}
-                        {listing.condition && (
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <span className="text-sm text-slate-500">Condition</span>
-                            <span className="text-sm font-medium text-slate-700">{CONDITION_LABELS[listing.condition] || listing.condition}</span>
-                          </div>
-                        )}
-                        {listing.declaredValue !== undefined && (
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <span className="text-sm text-slate-500">Declared Value</span>
-                            <span className="text-sm font-semibold text-slate-900">{Number(listing.declaredValue).toLocaleString()} {listing.currency}</span>
-                          </div>
-                        )}
-                        {listing.location && (
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <span className="text-sm text-slate-500">Location</span>
-                            <span className="text-sm text-slate-700 flex items-center gap-1">
-                              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              {listing.location}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between px-4 py-3">
-                          <span className="text-sm text-slate-500">Listed</span>
-                          <span className="text-sm text-slate-700">{new Date(listing.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                        </div>
-                        <div className="flex items-center justify-between px-4 py-3">
-                          <span className="text-sm text-slate-500">Seller</span>
-                          <span className="text-sm font-mono text-slate-700">{listing.userId.slice(0, 16)}...</span>
-                        </div>
-                      </div>
-
-                      {/* Reporter&apos;s description */}
-                      {report.description && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3">
-                          <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1">Reporter&apos;s description</p>
-                          <p className="text-sm text-red-800">{report.description}</p>
+                  <div className="border-t border-slate-200 px-5 py-4">
+                    <div className="flex gap-5">
+                      {/* Left: small clickable thumbnails */}
+                      {images.length > 0 && (
+                        <div className="flex flex-col gap-1.5 flex-shrink-0">
+                          {images.map((img) => (
+                            <button
+                              key={img.id}
+                              onClick={(e) => { e.stopPropagation(); setLightboxImage(getImageUrl(img.url)); }}
+                              className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-amber-400 hover:ring-2 hover:ring-amber-200 transition-all cursor-zoom-in"
+                            >
+                              <img src={getImageUrl(img.url)} alt="" className="w-full h-full object-cover" />
+                            </button>
+                          ))}
                         </div>
                       )}
 
-                      {/* Admin notes (if already resolved) */}
-                      {report.adminNotes && (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-                          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-1">Admin notes</p>
-                          <p className="text-sm text-emerald-800">{report.adminNotes}</p>
+                      {/* Right: listing info */}
+                      <div className="flex-1 min-w-0">
+                        {/* Title + status */}
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <h3 className="text-base font-bold text-slate-900">{listing.title}</h3>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
+                            listing.status === 'active' ? 'bg-emerald-50 text-emerald-700' :
+                            listing.status === 'locked' ? 'bg-amber-50 text-amber-700' :
+                            listing.status === 'traded' ? 'bg-blue-50 text-blue-700' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {listing.status}
+                          </span>
                         </div>
-                      )}
+
+                        {/* Description */}
+                        {listing.description && (
+                          <p className="text-sm text-slate-600 leading-relaxed mb-3">{listing.description}</p>
+                        )}
+
+                        {/* Details grid */}
+                        <div className="bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-200 mb-3">
+                          {listing.category?.name && (
+                            <div className="flex items-center justify-between px-3 py-2">
+                              <span className="text-xs text-slate-500">Category</span>
+                              <span className="text-xs font-semibold text-slate-900">{listing.category.name}</span>
+                            </div>
+                          )}
+                          {listing.condition && (
+                            <div className="flex items-center justify-between px-3 py-2">
+                              <span className="text-xs text-slate-500">Condition</span>
+                              <span className="text-xs font-medium text-slate-700">{CONDITION_LABELS[listing.condition] || listing.condition}</span>
+                            </div>
+                          )}
+                          {listing.location && (
+                            <div className="flex items-center justify-between px-3 py-2">
+                              <span className="text-xs text-slate-500">Location</span>
+                              <span className="text-xs text-slate-700 flex items-center gap-1">
+                                <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                {listing.location}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between px-3 py-2">
+                            <span className="text-xs text-slate-500">Listed</span>
+                            <span className="text-xs text-slate-700">{new Date(listing.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                          </div>
+                          <div className="flex items-center justify-between px-3 py-2">
+                            <span className="text-xs text-slate-500">Seller</span>
+                            <span className="text-xs font-mono text-slate-700">{listing.userId.slice(0, 16)}...</span>
+                          </div>
+                        </div>
+
+                        {/* Reporter's description */}
+                        {report.description && (
+                          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">
+                            <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wide mb-0.5">Reporter&apos;s description</p>
+                            <p className="text-xs text-red-800">{report.description}</p>
+                          </div>
+                        )}
+
+                        {/* Admin notes */}
+                        {report.adminNotes && (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                            <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide mb-0.5">Admin notes</p>
+                            <p className="text-xs text-emerald-800">{report.adminNotes}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -406,9 +397,6 @@ export default function AdminReportsPage() {
                     )}
                     {reviewingReport.listing?.condition && (
                       <span>{CONDITION_LABELS[reviewingReport.listing.condition] || reviewingReport.listing.condition}</span>
-                    )}
-                    {reviewingReport.listing?.declaredValue !== undefined && (
-                      <span>{Number(reviewingReport.listing.declaredValue).toLocaleString()} {reviewingReport.listing.currency}</span>
                     )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
@@ -562,6 +550,29 @@ export default function AdminReportsPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Image lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 cursor-zoom-out"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+          >
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightboxImage}
+            alt=""
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
