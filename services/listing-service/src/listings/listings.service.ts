@@ -5,6 +5,7 @@ import { ListingEntity } from './listing.entity';
 import { ListingImageEntity } from './listing-image.entity';
 import { ListingQuestionEntity } from './listing-question.entity';
 import { ListingFavoriteEntity } from './listing-favorite.entity';
+import { ListingReportEntity, ReportStatus } from './listing-report.entity';
 import { ListingStatus, ItemCondition, ROUTING_KEYS, QUEUES } from '@exchange/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { RabbitMQService } from '@exchange/common';
@@ -23,6 +24,8 @@ export class ListingsService {
     private readonly questionRepo: Repository<ListingQuestionEntity>,
     @InjectRepository(ListingFavoriteEntity)
     private readonly favoriteRepo: Repository<ListingFavoriteEntity>,
+    @InjectRepository(ListingReportEntity)
+    private readonly reportRepo: Repository<ListingReportEntity>,
     private readonly rabbitMQService: RabbitMQService,
     private readonly config: ConfigService,
   ) {}
@@ -281,6 +284,50 @@ export class ListingsService {
     if (favorites.length === 0) return [];
     const ids = favorites.map((f) => f.listingId);
     return this.listingRepo.find({ where: ids.map((id) => ({ id })), relations: ['images', 'category'] });
+  }
+
+  // Reports
+  async createReport(listingId: string, userId: string, reason: string, description?: string): Promise<ListingReportEntity> {
+    const listing = await this.findById(listingId);
+    if (listing.userId === userId) {
+      throw new ForbiddenException('Cannot report your own listing');
+    }
+    const existing = await this.reportRepo.findOne({ where: { listingId, userId } });
+    if (existing) {
+      throw new ForbiddenException('You have already reported this listing');
+    }
+    return this.reportRepo.save({ listingId, userId, reason, description });
+  }
+
+  async checkReport(listingId: string, userId: string): Promise<{ reported: boolean }> {
+    const existing = await this.reportRepo.findOne({ where: { listingId, userId } });
+    return { reported: !!existing };
+  }
+
+  async getReports(status?: string): Promise<ListingReportEntity[]> {
+    const where = status ? { status: status as ReportStatus } : {};
+    return this.reportRepo.find({ where, relations: ['listing'], order: { createdAt: 'DESC' } });
+  }
+
+  async getReportById(id: string): Promise<ListingReportEntity> {
+    const report = await this.reportRepo.findOne({ where: { id }, relations: ['listing'] });
+    if (!report) throw new NotFoundException('Report not found');
+    return report;
+  }
+
+  async reviewReport(id: string, adminId: string, status: string, adminNotes?: string): Promise<ListingReportEntity> {
+    const report = await this.getReportById(id);
+    report.status = status as ReportStatus;
+    report.reviewedBy = adminId;
+    if (adminNotes) report.adminNotes = adminNotes;
+    return this.reportRepo.save(report);
+  }
+
+  async archiveListingByAdmin(listingId: string): Promise<void> {
+    const listing = await this.findById(listingId);
+    listing.status = ListingStatus.ARCHIVED;
+    await this.listingRepo.save(listing);
+    this.logger.log(`Listing ${listingId} archived by admin`);
   }
 
   private async lockListing(listingId: string, tradeId: string): Promise<void> {

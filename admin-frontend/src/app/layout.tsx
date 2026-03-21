@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: '/admin/center-verifications', label: 'Center Queue' },
   { href: '/admin/disputes', label: 'Disputes' },
   { href: '/admin/fraud-flags', label: 'Fraud Flags' },
+  { href: '/admin/reports', label: 'Reports' },
   { href: '/admin/users', label: 'Users' },
 ];
 

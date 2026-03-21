@@ -222,6 +222,14 @@ export const favoritesApi = {
   getMyFavorites: () => api.get<import('@/types').Listing[]>('/listings/my/favorites'),
 };
 
+// Reports
+export const reportsApi = {
+  create: (listingId: string, reason: string, description?: string) =>
+    api.post<{ id: string }>(`/listings/${listingId}/report`, { reason, description }),
+  check: (listingId: string) =>
+    api.get<{ reported: boolean }>(`/listings/${listingId}/report/check`),
+};
+
 // Offers
 export const offersApi = {
   create: (data: {

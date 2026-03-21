@@ -1,4 +1,4 @@
-import type { Trade, TradeEvent, Dispute, Evidence, Listing, ProofPackage, UserSummary, Shipment, FraudFlag, VerificationCenter, CenterVerification } from '@/types';
+import type { Trade, TradeEvent, Dispute, Evidence, Listing, ProofPackage, UserSummary, Shipment, FraudFlag, VerificationCenter, CenterVerification, ListingReport } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 const API_HOST = API_URL.replace(/\/api$/, '');
@@ -156,6 +156,14 @@ export const adminApi = {
   getFraudFlagsByUser: (userId: string) => api.get<FraudFlag[]>(`/fraud-flags/user/${userId}`),
   reviewFraudFlag: (flagId: string, notes: string) =>
     api.post<FraudFlag>(`/fraud-flags/${flagId}/review`, { notes }),
+  getReports: (status?: string) => {
+    const qs = status ? `?status=${status}` : '';
+    return api.get<ListingReport[]>(`/listings/reports/all${qs}`);
+  },
+  reviewReport: (id: string, status: string, adminNotes?: string) =>
+    api.patch<ListingReport>(`/listings/reports/${id}/review`, { status, adminNotes }),
+  archiveReportedListing: (reportId: string) =>
+    api.post<{ message: string }>(`/listings/reports/${reportId}/archive-listing`, {}),
 };
 
 export const centersApi = {

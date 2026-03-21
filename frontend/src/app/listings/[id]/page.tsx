@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { listingsApi, publicProfileApi, questionsApi, favoritesApi, paymentsApi, messagingApi, getImageUrl, QAQuestion } from '@/lib/api';
+import { listingsApi, publicProfileApi, questionsApi, favoritesApi, paymentsApi, messagingApi, reportsApi, getImageUrl, QAQuestion } from '@/lib/api';
 import { getUserId, isAuthenticated } from '@/lib/auth';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -73,6 +73,12 @@ export default function ListingDetailPage() {
   // Share/report/delete state
   const [copied, setCopied] = useState(false);
   const [reported, setReported] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportSuccess, setReportSuccess] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
@@ -129,6 +135,7 @@ export default function ListingDetailPage() {
       promises.push(favoritesApi.getCount(listingId).then((r) => setFavoriteCount(r.count)).catch(() => {}));
       if (currentUserId) {
         promises.push(favoritesApi.check(listingId, currentUserId).then((r) => setFavorited(r.favorited)).catch(() => {}));
+        promises.push(reportsApi.check(listingId).then((r) => setReported(r.reported)).catch(() => {}));
       }
 
       await Promise.allSettled(promises);
@@ -217,6 +224,22 @@ export default function ListingDetailPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleReport = async () => {
+    if (!authed) { window.location.replace('/login'); return; }
+    if (!reportReason) { setReportError(t('report.error_no_reason')); return; }
+    setSubmittingReport(true);
+    setReportError('');
+    try {
+      await reportsApi.create(listingId, reportReason, reportDescription.trim() || undefined);
+      setReported(true);
+      setReportSuccess(true);
+      setTimeout(() => { setShowReportModal(false); setReportSuccess(false); }, 2000);
+    } catch (err: unknown) {
+      setReportError(err instanceof Error ? err.message : t('report.error_generic'));
+    }
+    setSubmittingReport(false);
   };
 
   const handleDelete = async () => {
@@ -670,7 +693,21 @@ export default function ListingDetailPage() {
                 {copied ? t('listing_detail.share_copied') : t('listing_detail.share')}
               </button>
               {!isOwner && (
-                <button onClick={() => setReported(true)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-slate-500 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                <button
+                  onClick={() => {
+                    if (!authed) { window.location.replace('/login'); return; }
+                    if (reported) return;
+                    setShowReportModal(true);
+                    setReportReason('');
+                    setReportDescription('');
+                    setReportError('');
+                    setReportSuccess(false);
+                  }}
+                  disabled={reported}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs rounded-lg transition-colors ${
+                    reported ? 'text-red-500 bg-red-50 cursor-default' : 'text-slate-500 hover:text-red-600 hover:bg-red-50'
+                  }`}
+                >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
                   </svg>
@@ -778,6 +815,85 @@ export default function ListingDetailPage() {
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="card w-full max-w-md p-6 shadow-xl">
+            {reportSuccess ? (
+              <div className="text-center py-6">
+                <svg className="w-12 h-12 text-emerald-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm font-medium text-slate-900">{t('report.success')}</p>
+                <p className="text-xs text-slate-500 mt-1">{t('report.success_desc')}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-slate-900 mb-1">{t('report.title')}</h3>
+                <p className="text-sm text-slate-500 mb-4">{t('report.subtitle')}</p>
+
+                {reportError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-3">{reportError}</div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 block mb-2">{t('report.reason_label')}</label>
+                    <div className="space-y-2">
+                      {[
+                        { value: 'inappropriate_content', label: t('report.reason_inappropriate') },
+                        { value: 'fraud_scam', label: t('report.reason_fraud') },
+                        { value: 'wrong_category', label: t('report.reason_wrong_category') },
+                        { value: 'duplicate', label: t('report.reason_duplicate') },
+                        { value: 'prohibited_item', label: t('report.reason_prohibited') },
+                        { value: 'other', label: t('report.reason_other') },
+                      ].map((opt) => (
+                        <label key={opt.value} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                          reportReason === opt.value ? 'border-navy-900 bg-navy-50' : 'border-slate-200 hover:border-slate-300'
+                        }`}>
+                          <input
+                            type="radio"
+                            name="reportReason"
+                            value={opt.value}
+                            checked={reportReason === opt.value}
+                            onChange={(e) => setReportReason(e.target.value)}
+                            className="accent-navy-900"
+                          />
+                          <span className="text-sm text-slate-700">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 block mb-1">
+                      {t('report.description_label')} <span className="text-slate-400 font-normal">{t('report.optional')}</span>
+                    </label>
+                    <textarea
+                      value={reportDescription}
+                      onChange={(e) => setReportDescription(e.target.value)}
+                      placeholder={t('report.description_placeholder')}
+                      rows={3}
+                      maxLength={1000}
+                      className="input text-sm resize-y"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={handleReport} disabled={submittingReport || !reportReason} className="btn-primary flex-1">
+                      {submittingReport ? t('report.submitting') : t('report.submit')}
+                    </button>
+                    <button onClick={() => setShowReportModal(false)} className="btn-secondary">
+                      {t('report.cancel')}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

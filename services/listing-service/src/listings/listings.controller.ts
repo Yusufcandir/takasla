@@ -4,7 +4,7 @@ import { JwtAuthGuard, CurrentUser, Public, StorageService } from '@exchange/com
 import { JwtPayload, ItemCondition } from '@exchange/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { ListingsService } from './listings.service';
-import { CreateListingDto, UpdateListingDto, BoostListingDto, AskQuestionDto, AnswerQuestionDto, AddReplyDto } from './dto';
+import { CreateListingDto, UpdateListingDto, BoostListingDto, AskQuestionDto, AnswerQuestionDto, AddReplyDto, CreateReportDto, ReviewReportDto } from './dto';
 import { memoryStorage } from 'multer';
 import { join } from 'path';
 import { Response } from 'express';
@@ -92,6 +92,41 @@ export class ListingsController {
     const filePath = existsSync(fallbackPath) ? fallbackPath : legacyPath;
     if (!existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
     return res.sendFile(filePath);
+  }
+
+  // --- Reports (admin routes — must be before :id) ---
+  @Get('reports/all')
+  @UseGuards(JwtAuthGuard)
+  async getAllReports(@Query('status') status?: string) {
+    return this.listingsService.getReports(status);
+  }
+
+  @Get('reports/:reportId')
+  @UseGuards(JwtAuthGuard)
+  async getReportById(@Param('reportId') reportId: string) {
+    return this.listingsService.getReportById(reportId);
+  }
+
+  @Patch('reports/:reportId/review')
+  @UseGuards(JwtAuthGuard)
+  async reviewReport(
+    @Param('reportId') reportId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: ReviewReportDto,
+  ) {
+    return this.listingsService.reviewReport(reportId, user.sub, body.status, body.adminNotes);
+  }
+
+  @Post('reports/:reportId/archive-listing')
+  @UseGuards(JwtAuthGuard)
+  async archiveReportedListing(
+    @Param('reportId') reportId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const report = await this.listingsService.getReportById(reportId);
+    await this.listingsService.archiveListingByAdmin(report.listingId);
+    await this.listingsService.reviewReport(reportId, user.sub, 'reviewed', 'Listing archived by admin');
+    return { message: 'Listing archived' };
   }
 
   @Public()
@@ -212,5 +247,22 @@ export class ListingsController {
   async checkFavorite(@Param('id') id: string, @Query('userId') userId: string) {
     if (!userId) return { favorited: false };
     return this.listingsService.checkFavorite(id, userId);
+  }
+
+  // --- Reports (user routes) ---
+  @Post(':id/report')
+  @UseGuards(JwtAuthGuard)
+  async reportListing(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: CreateReportDto,
+  ) {
+    return this.listingsService.createReport(id, user.sub, body.reason, body.description);
+  }
+
+  @Get(':id/report/check')
+  @UseGuards(JwtAuthGuard)
+  async checkReport(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.listingsService.checkReport(id, user.sub);
   }
 }

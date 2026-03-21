@@ -113,3 +113,23 @@ export class AddReplyDto {
   @IsNotEmpty()
   content!: string;
 }
+
+export class CreateReportDto {
+  @IsIn(['inappropriate_content', 'fraud_scam', 'wrong_category', 'duplicate', 'prohibited_item', 'other'])
+  reason!: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
+  description?: string;
+}
+
+export class ReviewReportDto {
+  @IsIn(['reviewed', 'dismissed'])
+  status!: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
+  adminNotes?: string;
+}

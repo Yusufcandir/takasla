@@ -199,6 +199,20 @@ export interface VerificationCenter {
   createdAt: string;
 }
 
+export interface ListingReport {
+  id: string;
+  listingId: string;
+  userId: string;
+  reason: 'inappropriate_content' | 'fraud_scam' | 'wrong_category' | 'duplicate' | 'prohibited_item' | 'other';
+  description?: string;
+  status: 'pending' | 'reviewed' | 'dismissed';
+  reviewedBy?: string;
+  adminNotes?: string;
+  listing?: Listing;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CenterVerification {
   id: string;
   tradeId: string;
