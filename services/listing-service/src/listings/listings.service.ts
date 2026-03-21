@@ -306,11 +306,11 @@ export class ListingsService {
 
   async getReports(status?: string): Promise<ListingReportEntity[]> {
     const where = status ? { status: status as ReportStatus } : {};
-    return this.reportRepo.find({ where, relations: ['listing'], order: { createdAt: 'DESC' } });
+    return this.reportRepo.find({ where, relations: { listing: { images: true, category: true } }, order: { createdAt: 'DESC' } });
   }
 
   async getReportById(id: string): Promise<ListingReportEntity> {
-    const report = await this.reportRepo.findOne({ where: { id }, relations: ['listing'] });
+    const report = await this.reportRepo.findOne({ where: { id }, relations: { listing: { images: true, category: true } } });
     if (!report) throw new NotFoundException('Report not found');
     return report;
   }
