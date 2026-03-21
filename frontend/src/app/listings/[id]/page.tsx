@@ -391,7 +391,10 @@ export default function ListingDetailPage() {
                         {q.answer ? (
                           <div className="mt-3 pl-3 border-l-2 border-emerald-300">
                             <p className="text-sm text-slate-700">{q.answer}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{t('listing_detail.qa_seller_answered')}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              <Link href={`/profile/${listing.userId}`} className="font-medium hover:underline text-slate-500">{sellerProfile?.displayName || t('listing_detail.qa_seller_answered')}</Link>
+                              {' — '}{t('listing_detail.qa_seller_answered')}
+                            </p>
                           </div>
                         ) : isOwner && (
                           <div className="mt-2">

@@ -551,22 +551,6 @@ export default function CreateListingPage() {
             </div>
           </div>
 
-          {/* Exchange Value Range */}
-          <div>
-            <label className="label">{t('create_listing.exchange_range')} <span className="text-slate-400 font-normal">{t('create_listing.exchange_range_optional')}</span></label>
-            <p className="text-xs text-slate-400 mb-2">{t('create_listing.exchange_range_desc')}</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Min {selectedCurrency.symbol}</span>
-                <input type="number" min="0" step="1" value={minExchangeValue} onChange={(e) => setMinExchangeValue(e.target.value)} className="input pl-16" placeholder="0" />
-              </div>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Max {selectedCurrency.symbol}</span>
-                <input type="number" min="0" step="1" value={maxExchangeValue} onChange={(e) => setMaxExchangeValue(e.target.value)} className="input pl-16" placeholder="Any" />
-              </div>
-            </div>
-          </div>
-
           {/* Risk Estimate */}
           {estimatedRisk && (
             <div className={`rounded-lg px-4 py-3 text-sm border ${

@@ -178,7 +178,8 @@ export const listingsApi = {
   uploadImages: async (files: File[]): Promise<{ url: string; originalName: string; size: number }[]> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     const formData = new FormData();
-    files.forEach((file) => formData.append('images', file));
+    const compressed = await Promise.all(files.map(compressImage));
+    compressed.forEach((file) => formData.append('images', file));
     const res = await fetch(`${API_URL}/listings/upload`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -293,8 +294,9 @@ export const profileApi = {
   getTrustScore: (userId: string) => api.get<TrustScore>(`/profiles/${userId}/trust`),
   uploadAvatar: async (file: File): Promise<{ url: string; originalName: string; size: number }> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const compressed = await compressImage(file);
     const formData = new FormData();
-    formData.append('avatar', file);
+    formData.append('avatar', compressed);
     const res = await fetch(`${API_URL}/profiles/upload-avatar`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -410,3 +412,31 @@ export const certificatesApi = {
   transfer: (id: string, toUserId: string) =>
     api.post<Certificate>(`/certificates/${id}/transfer`, { toUserId }),
 };
+
+// Compress images client-side before upload (max 1200px, JPEG 80%)
+function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.size < 200_000) return Promise.resolve(file);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1200;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        const ratio = Math.min(MAX / width, MAX / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file),
+        'image/jpeg',
+        0.80,
+      );
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
