@@ -45,5 +45,13 @@ __ADMIN_DOMAIN__ {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 	}
 
-	reverse_proxy admin-frontend:4001
+	# API gateway — proxy /api/* requests
+	handle /api/* {
+		reverse_proxy api-gateway:3000
+	}
+
+	# Admin frontend — everything else
+	handle {
+		reverse_proxy admin-frontend:4001
+	}
 }
