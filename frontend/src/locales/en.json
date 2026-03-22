@@ -346,6 +346,7 @@
   "trade_detail.incoming_shipment": "Incoming Shipment",
   "trade_detail.tracking": "Tracking:",
   "trade_detail.track_shipment": "Track Shipment",
+  "trade_detail.simulated": "Simulated",
   "trade_detail.no_rates": "No carrier rates available for this route.",
   "trade_detail.rates_error": "Failed to get carrier rates",
   "trade_detail.loading_rates": "Loading rates...",

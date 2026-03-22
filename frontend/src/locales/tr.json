@@ -346,6 +346,7 @@
   "trade_detail.incoming_shipment": "Gelen Kargo",
   "trade_detail.tracking": "Takip:",
   "trade_detail.track_shipment": "Kargo Takip",
+  "trade_detail.simulated": "Simülasyon",
   "trade_detail.no_rates": "Bu güzergah için kargo fiyatı bulunamadı.",
   "trade_detail.rates_error": "Kargo fiyatları alınamadı",
   "trade_detail.loading_rates": "Fiyatlar yükleniyor...",
