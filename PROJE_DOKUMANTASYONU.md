@@ -24,8 +24,10 @@
 16. [Veritabanı Varlıkları (Entities)](#16-veritabanı-varlıkları)
 17. [Docker Altyapısı](#17-docker-altyapısı)
 18. [Güvenlik Önlemleri](#18-güvenlik-önlemleri)
-19. [Dağıtım (Deployment)](#19-dağıtım)
-20. [Komutlar ve Scriptler](#20-komutlar-ve-scriptler)
+19. [KVKK Uyumu (Kişisel Verilerin Korunması)](#19-kvkk-uyumu)
+20. [Moderasyon ve Güvenlik](#20-moderasyon-ve-güvenlik)
+21. [Dağıtım (Deployment)](#21-dağıtım)
+22. [Komutlar ve Scriptler](#22-komutlar-ve-scriptler)
 
 ---
 
@@ -58,9 +60,10 @@ Bu platform, yüksek değerli ürünlerin güvenli bir şekilde takas edilmesini
 | **Blockchain** | Ethereum Sepolia | Merkle kökü sabitleme (ethers.js v6) |
 | **Nesne Depolama** | Cloudflare R2 | S3 uyumlu, `@aws-sdk/client-s3` ile erişim |
 | **Kargo** | Geliver + EasyPost | Yurtiçi + uluslararası kargo entegrasyonu |
-| **Ödeme** | Iyzico | Türk ödeme altyapısı, simülasyon modu destekli |
+| **Ödeme** | Iyzico | Turk odeme altyapisi, simulasyon modu destekli |
 | **Frontend** | Next.js 14 (App Router) | 2 ayrı uygulama: kullanıcı + admin |
-| **E-posta** | Nodemailer + Gmail SMTP | E-posta doğrulama için |
+| **E-posta** | Brevo HTTP API (birincil) + Gmail SMTP (yedek) | Doğrulama ve bildirim e-postaları |
+| **AI Moderasyon** | SightEngine API | Yapay zeka üretimi görsel tespiti |
 | **Ters Proxy** | Caddy 2 | Otomatik TLS, güvenlik başlıkları |
 | **Altyapı** | Docker, Docker Compose | pnpm workspace monorepo |
 | **Paket Yöneticisi** | pnpm | Workspace desteğiyle monorepo yönetimi |
@@ -742,6 +745,8 @@ Tüm HTTP trafiği tek giriş noktasından geçer. Gateway, istekleri ilgili ser
 | passwordHash | VARCHAR | bcrypt hash |
 | role | VARCHAR | `user` / `moderator` / `admin` |
 | isVerified | BOOLEAN | E-posta doğrulama durumu |
+| consentedAt | TIMESTAMPTZ | KVKK onay tarihi |
+| consentVersion | VARCHAR | Onaylanan şartlar sürümü |
 | createdAt / updatedAt | TIMESTAMPTZ | Zaman damgaları |
 
 **refresh_tokens**
@@ -761,6 +766,14 @@ Tüm HTTP trafiği tek giriş noktasından geçer. Gateway, istekleri ilgili ser
 | token | UUID (unique) | Doğrulama token'ı |
 | expiresAt | TIMESTAMPTZ | 24 saat geçerli |
 | used | BOOLEAN | Kullanıldı mı |
+
+**banned_emails** — Yasaklanmış e-posta adresleri
+| Alan | Tip | Açıklama |
+|------|-----|----------|
+| id | UUID (PK) | |
+| email | VARCHAR (unique) | Yasaklanan e-posta |
+| bannedAt | TIMESTAMPTZ | Yasaklanma tarihi |
+| reason | VARCHAR | Yasaklama sebebi |
 
 ---
 
@@ -797,6 +810,7 @@ Tüm HTTP trafiği tek giriş noktasından geçer. Gateway, istekleri ilgili ser
 **categories** — Kategoriler (riskWeight, baseFee dahil)
 **listing_questions** — Soru-cevap
 **listing_favorites** — Favori ilanlar
+**listing_reports** — İlan raporları (moderasyon)
 
 ---
 
@@ -919,30 +933,153 @@ Caddy tüm yanıtlara güvenlik başlıkları ekler: `X-Content-Type-Options`, `
 
 ---
 
-## 19. Dağıtım
+## 19. KVKK Uyumu (Kişisel Verilerin Korunması)
+
+Platform, 6698 sayılı KVKK (Kişisel Verilerin Korunması Kanunu) gerekliliklerini karşılamak üzere kapsamlı önlemler içerir.
+
+### 19.1 Yasal Sayfalar
+
+| Sayfa | Yol | İçerik |
+|-------|-----|--------|
+| KVKK Aydınlatma Metni | `/kvkk` | Madde 10 kapsamında veri işleme bildirimi |
+| Gizlilik Politikası | `/privacy` | Kişisel veri toplama ve kullanım politikası |
+| Kullanım Koşulları | `/terms` | Platform kullanım şartları |
+
+Footer'da tüm yasal sayfalara bağlantılar bulunur.
+
+### 19.2 Kayıt Onay Mekanizması
+
+Kayıt sırasında iki ayrı onay kutusu (KVKK Kurul Kararı 2018/90 gereği ayrı tutulur):
+
+1. **KVKK Aydınlatma Metni onayı** (zorunlu) — `/kvkk` sayfasına bağlantı
+2. **Kullanım Koşulları + Gizlilik onayı** (zorunlu) — `/terms` ve `/privacy` sayfalarına bağlantı
+
+Onay bilgileri veritabanında saklanır:
+- `consentedAt` (TIMESTAMPTZ) — onay tarihi
+- `consentVersion` (VARCHAR) — onaylanan sürüm (ör. "1.0")
+
+### 19.3 Kullanıcı Hakları (Madde 11)
+
+| Hak | Uygulama |
+|-----|----------|
+| Bilgi edinme | `GET /auth/my-data` — tüm kişisel veriler JSON olarak döner |
+| Silme (unutulma hakkı) | Hesap silme → `auth.user.deleted` olayı → tüm servislerde temizlik |
+| Düzeltme | Profil güncelleme endpoint'leri |
+
+### 19.4 Kullanıcı Silme Kaskadı
+
+`auth.user.deleted` RabbitMQ olayı yayınlandığında, her servis kendi verisini temizler:
+
+| Servis | İşlem |
+|--------|-------|
+| user-service | Profil, adresler ve R2'deki avatar silinir |
+| listing-service | İlanlar arşivlenir, favoriler/raporlar/sorular silinir |
+| offer-service | Tüm teklifler silinir |
+| trade-service | Tamamlanmış takaslarda adresler anonimleştirilir |
+| reputation-service | Güven puanı silinir, puanlamalar anonimleştirilir |
+| dispute-service | Uyuşmazlıklarda kullanıcı bilgileri anonimleştirilir |
+| shipping-service | Kargo adres bilgileri anonimleştirilir |
+| payment-service | Kişisel bilgiler anonimleştirilir (denetim kaydı tutulur) |
+
+Her serviste `src/cleanup/user-cleanup.listener.ts` dosyası bu işlemleri gerçekleştirir.
+
+### 19.5 EXIF Sıyırma (Görsel Gizliliği)
+
+Yüklenen tüm görseller (ilan, kanıt, avatar), R2'ye yüklenmeden önce `sharp` kütüphanesi ile işlenir:
+- GPS koordinatları kaldırılır
+- Kamera bilgileri kaldırılır
+- Zaman damgaları kaldırılır
+- `sharp(buffer).rotate().toBuffer()` — otomatik yönlendirme + meta veri temizleme
+
+Bu işlem `StorageService.upload()` seviyesinde yapılır, tüm servisleri otomatik kapsar.
+
+### 19.6 Veri Saklama Politikası
+
+Zamanlanmış görevler (cron) ile eski veriler temizlenir:
+
+| Servis | Sıklık | İşlem |
+|--------|--------|-------|
+| auth-service | Haftalık | Süresi dolmuş/iptal edilmiş token'ları sil |
+| trade-service | Aylık | 2 yıldan eski takaslarda adresleri anonimleştir |
+| dispute-service | Aylık | 2 yıldan eski uyuşmazlıklarda kişisel bilgileri anonimleştir |
+
+### 19.7 Üçüncü Taraf Veri Aktarımları
+
+| Üçüncü Taraf | Aktarılan Veri | Amaç | Ülke |
+|--------------|----------------|------|------|
+| Brevo | E-posta adresi | E-posta gönderimi | Fransa (AB) |
+| Cloudflare R2 | Yüklenen görseller | Dosya depolama | ABD/Küresel |
+| SightEngine | Yüklenen görseller | AI görsel moderasyonu | Fransa (AB) |
+| Geliver | Kargo adresi, isim | Yurtiçi kargo | Türkiye |
+| EasyPost | Kargo adresi, isim | Uluslararası kargo | ABD |
+
+---
+
+## 20. Moderasyon ve Güvenlik
+
+### 20.1 AI Görsel Tespiti (SightEngine)
+
+`packages/common/src/sightengine/` modülü ile yapay zeka üretimi görseller tespit edilir:
+- İlan görselleri yüklenirken kontrol edilir
+- Takas kanıtları yüklenirken kontrol edilir
+- `SIGHTENGINE_API_USER` ve `SIGHTENGINE_API_SECRET` ile yapılandırılır
+- Yapılandırılmamışsa sessizce atlanır
+
+### 20.2 Yasaklı E-postalar
+
+- `BannedEmailEntity` — yasaklanan kullanıcıların e-postaları saklanır
+- Kayıt sırasında `banned_emails` tablosu kontrol edilir
+- Yasaklanan kullanıcı aynı e-posta ile yeniden kayıt olamaz
+
+### 20.3 İlan Raporlama
+
+- Kullanıcılar ilanları sebep belirterek raporlayabilir
+- Admin panelinde `/admin/reports` sayfasından incelenir
+- Moderasyon işlemleri: uyarı, ilan askıya alma, ilan silme, kullanıcı yasaklama
+
+### 20.4 E-posta Bildirimleri
+
+Tüm moderasyon işlemleri etkilenen kullanıcıya e-posta bildirimi gönderir:
+- Hesap yasaklama
+- Uyarı
+- Uyuşmazlık çözümü
+- Sahtekarlık bayrakları
+
+E-postalar Brevo HTTP API üzerinden gönderilir.
+
+---
+
+## 21. Dağıtım
 
 ### Hedef Ortam
 
-- **Sunucu:** Oracle Cloud Always Free — VM.Standard.A1.Flex (4 ARM CPU, 24 GB RAM, 200 GB disk)
-- **İşletim sistemi:** Ubuntu 22.04 (aarch64)
-- **Domain:** DuckDNS ücretsiz alt alan adı + Let's Encrypt otomatik TLS
-- **Maliyet:** Aylık $0
+- **Sunucu:** DigitalOcean Droplet (4 vCPU, 8 GB RAM, 160 GB disk)
+- **İşletim sistemi:** Ubuntu 22.04
+- **Domain:** DuckDNS ücretsiz alt alan adı + Let's Encrypt otomatik TLS (Caddy)
+- **Canlı:** `takasla.duckdns.org` (kullanıcı) + `takasla-admin.duckdns.org` (admin)
 
 ### Dağıtım Adımları (Özet)
 
-1. DuckDNS'te 2 alt alan adı oluştur (`isim.duckdns.org` + `isim-admin.duckdns.org`)
-2. Oracle Cloud'da ARM VM oluştur
-3. Güvenlik listesinde 80 ve 443 portlarını aç
+1. DuckDNS'te 2 alt alan adı oluştur (`takasla.duckdns.org` + `takasla-admin.duckdns.org`)
+2. VPS oluştur (DigitalOcean, Oracle Cloud, vb.)
+3. Güvenlik duvarında 80 ve 443 portlarını aç
 4. Kodu GitHub'a yükle
 5. Sunucuya SSH ile bağlan, `scripts/setup-server.sh` çalıştır
-6. Kodu klonla, `.env` yapılandır
-7. `scripts/deploy.sh --domain İSİM` ile dağıt
+6. Kodu `/opt/exchange` altına klonla, `.env` yapılandır
+7. `scripts/deploy.sh --domain takasla` ile dağıt
+
+### Üretim Ortamı Önemli Notları
+
+- `TYPEORM_SYNCHRONIZE=false` üretimde (`docker-compose.prod.yml` ile ayarlanır)
+- Yeni entity sütunları **manuel ALTER TABLE** gerektirir — TypeORM otomatik oluşturmaz
+- Her servisin bellek limiti vardır (256-512 MB)
+- 29 konteyner çalışır: 12 servis + 2 frontend + 11 PostgreSQL + Redis + RabbitMQ + Caddy + db-backup
 
 Detaylar için `DEPLOYMENT.md` dosyasına bakınız.
 
 ---
 
-## 20. Komutlar ve Scriptler
+## 22. Komutlar ve Scriptler
 
 ### Geliştirme Komutları
 
@@ -1013,10 +1150,12 @@ curl -X POST http://localhost:3000/api/certificates/anchor
 | Değişken | Servis | Açıklama |
 |----------|--------|----------|
 | `JWT_SECRET` | auth | JWT imzalama anahtarı |
-| `SMTP_USER` / `SMTP_PASS` | auth | Gmail SMTP kimlik bilgileri |
+| `BREVO_API_KEY` | auth | Brevo HTTP API anahtarı (birincil e-posta) |
+| `SMTP_USER` / `SMTP_PASS` | auth | Gmail SMTP kimlik bilgileri (yedek e-posta) |
 | `FRONTEND_URL` | auth, payment | Doğrulama e-postası bağlantıları için |
 | `NEXT_PUBLIC_API_URL` | frontend'ler | **Build zamanında sabitlenir** — IP değişince yeniden build gerekir |
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_PUBLIC_URL` | listing, trade, user | Cloudflare R2 depolama |
+| `SIGHTENGINE_API_USER` / `SIGHTENGINE_API_SECRET` | listing, trade | AI görsel moderasyonu |
 | `GELIVER_TOKEN` / `GELIVER_TEST_MODE` | shipping | Geliver kargo entegrasyonu |
 | `EASYPOST_API_KEY` | shipping | EasyPost uluslararası kargo |
 | `IYZICO_API_KEY` / `IYZICO_SECRET_KEY` | payment | Iyzico ödeme |
@@ -1025,7 +1164,7 @@ curl -X POST http://localhost:3000/api/certificates/anchor
 | `*_DB_PASSWORD` | tüm servisler | Her servisin veritabanı şifresi |
 | `RABBITMQ_PASSWORD` | tüm servisler | RabbitMQ bağlantı şifresi |
 
-> Yapılandırılmamış servisler (R2, Geliver, EasyPost, Iyzico, Sepolia) otomatik olarak simülasyon/yedek modunda çalışır.
+> Yapılandırılmamış servisler (R2, Geliver, EasyPost, Iyzico, Sepolia, SightEngine, Brevo) otomatik olarak simülasyon/yedek modunda çalışır.
 
 ---
 

@@ -375,11 +375,15 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=exchange
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
     depends_on:
       postgres-offer:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     logging:

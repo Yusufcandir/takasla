@@ -352,13 +352,139 @@ Old images in Docker volumes → still served via fallback endpoints
 
 ---
 
-## What Comes Next
+## Phase 9 — Branding, UX & Internationalization (COMPLETE)
 
-### Deployment
-- [ ] **Oracle Cloud Always Free** — provision ARM VM, install Docker, deploy full stack
-- [ ] Domain name + HTTPS (Let's Encrypt / Nginx reverse proxy)
-- [ ] Set `FRONTEND_URL` to real domain so verification links work from any device/network
-- [ ] Static IP or DNS-based `NEXT_PUBLIC_API_URL` to avoid IP change rebuilds
+### Branding
+- [x] Renamed platform from "Exchange" to **Takasla**
+- [x] Updated all logos, page titles, and branding references
+- [x] Fixed remaining "Ex" logo on login/register pages
+
+### UX Improvements
+- [x] **Listing Q&A** — Threaded conversations with "See All" pattern, clickable seller profiles with avatars
+- [x] **Image handling** — Smaller thumbnails with click-to-expand lightbox, frontend image compression before upload
+- [x] **Mobile stepper** — Fixed mobile-friendly step progression in trade flow
+- [x] **Volume mounts** — Fixed to match `uploads-fallback/` path convention
+
+### Internationalization
+- [x] Turkish + English translations (`frontend/src/locales/{en,tr}.json`, ~44KB each)
+- [x] Translated statuses, events, categories, and UI strings
+- [x] Language toggle component with localStorage persistence
+- [x] Fixed missing `useTranslation` in MarketingHome component
+
+---
+
+## Phase 10 — Email Service Migration (COMPLETE)
+
+### Gmail SMTP → Resend → Brevo
+- [x] Initial email: Gmail SMTP via Nodemailer
+- [x] Made verification email non-blocking to prevent registration hang
+- [x] Switched to Resend HTTP API (better deliverability)
+- [x] Switched to **Brevo HTTP API** (final, better free tier: 300 emails/day)
+- [x] Auth-service `EmailService` uses Brevo as primary, SMTP as fallback
+- [x] Falls back to console logging if neither configured
+
+---
+
+## Phase 11 — Listing Reports & Moderation (COMPLETE)
+
+### Listing Report System
+- [x] **ListingReportEntity** — users can report listings with reason + description
+- [x] `POST /listings/:id/report` — submit a report (idempotent per user per listing)
+- [x] Fixed `ReportReason` type casting in `createReport`
+- [x] Registered `ListingReportEntity` in DatabaseModule entities
+
+### Admin Moderation Panel
+- [x] `/admin/reports` — listing reports page with inline previews and moderation actions
+- [x] Full listing card preview and warning history in admin reports
+- [x] Revamped admin reports page with action buttons (warn, suspend, delete listing, ban user)
+
+---
+
+## Phase 12 — AI Moderation & User Safety (COMPLETE)
+
+### Banned Emails
+- [x] **BannedEmailEntity** — stores banned user emails to prevent re-registration
+- [x] Registration checks `banned_emails` table before creating account
+- [x] Ban user action adds email to banned list
+
+### SightEngine AI Detection
+- [x] **SightEngineModule/Service** in `packages/common/src/sightengine/`
+- [x] Detects AI-generated/synthetic images in listing uploads and trade proof submissions
+- [x] Configured via `SIGHTENGINE_API_USER` and `SIGHTENGINE_API_SECRET`
+- [x] Falls back to no-op if credentials not set
+
+### Moderation Actions & Email Notifications
+- [x] Admin fraud flags page: moderation action buttons (warn, ban, clear flag)
+- [x] Email notifications for ALL moderation actions (ban, warning, dispute resolution, fraud flags)
+- [x] Uses Brevo HTTP API for notification emails
+
+---
+
+## Phase 13 — KVKK Compliance (COMPLETE)
+
+### Legal Pages
+- [x] `/kvkk` — KVKK Aydinlatma Metni (Data Processing Notice per Article 10)
+- [x] `/privacy` — Gizlilik Politikasi (Privacy Policy)
+- [x] `/terms` — Kullanim Kosullari (Terms of Service)
+- [x] Footer links to all legal pages in `layout.tsx`
+
+### Registration Consent
+- [x] Two separate checkboxes at registration (KVKK Board Decision 2018/90):
+  1. KVKK acknowledgment (mandatory, links to `/kvkk`)
+  2. Terms + Privacy acceptance (mandatory, links to `/terms` and `/privacy`)
+- [x] `consentedAt` (TIMESTAMPTZ) and `consentVersion` (VARCHAR) added to UserEntity
+- [x] `kvkkConsent` + `termsConsent` fields in RegisterDto (must be `true`)
+- [x] Backend validates both consents before creating user
+
+### Data Rights (Article 11)
+- [x] `GET /auth/my-data` — exports all user data as JSON (profiles, addresses, listings, trades)
+- [x] User deletion cascade via `auth.user.deleted` RabbitMQ event → all services clean up
+
+### User Deletion Cascade
+- [x] Each service has `src/cleanup/user-cleanup.listener.ts`:
+  - user-service: delete profile, addresses, avatar
+  - listing-service: archive listings, delete favorites/reports/questions
+  - offer-service: delete all offers
+  - trade-service: anonymize addresses
+  - reputation-service: delete trust score, anonymize ratings
+  - dispute-service: anonymize disputes
+  - shipping-service: anonymize shipments
+  - payment-service: anonymize payments
+
+### EXIF Stripping (Image Privacy)
+- [x] `sharp` added to `@exchange/common`
+- [x] `StorageService.upload()` strips EXIF/GPS metadata from images before R2 upload
+- [x] Applied automatically to all uploads (listings, proofs, avatars) at storage layer
+
+### Data Retention Schedulers
+- [x] auth-service: weekly cleanup of expired/revoked tokens
+- [x] trade-service: monthly anonymization of addresses in trades >2 years old
+- [x] dispute-service: monthly anonymization of PII in disputes >2 years old
+
+---
+
+## Phase 14 — Production Deployment (COMPLETE)
+
+### Server Setup
+- [x] DigitalOcean droplet: `134.209.198.150` (4 vCPU, 8 GB RAM, Ubuntu 22.04)
+- [x] DuckDNS domains: `takasla.duckdns.org` + `takasla-admin.duckdns.org`
+- [x] Caddy reverse proxy with auto-TLS (Let's Encrypt)
+- [x] All 29 containers running (12 services + 2 frontends + 11 postgres + redis + rabbitmq + caddy + db-backup)
+
+### Deployment Workflow
+- [x] `scripts/deploy.sh` — git pull, Caddyfile generation, Docker build, health checks
+- [x] `scripts/setup-server.sh` — one-time server setup (Docker, swap, firewall, DuckDNS)
+- [x] `docker-compose.prod.yml` — production overrides: `TYPEORM_SYNCHRONIZE=false`, memory limits
+- [x] Automatic database backups every 6 hours via `db-backup` container
+
+### Post-Deployment Fixes
+- [x] Fixed: auth-service crash from missing `consented_at`/`consent_version` columns (manual ALTER TABLE)
+- [x] Fixed: admin panel 404 — added `/api/*` proxy route to admin domain in Caddyfile.prod
+- [x] Fixed: offer-service Redis connection errors — added missing REDIS_HOST/REDIS_PORT env vars
+
+---
+
+## What Comes Next
 
 ### Testing + Evaluation
 - [ ] Unit tests — state machine (all transitions + guards)
@@ -375,4 +501,4 @@ Old images in Docker volumes → still served via fallback endpoints
 - [ ] CI/CD pipeline (`.github/workflows/ci.yml`)
 - [ ] Rate limiting per-user on trade endpoints
 - [ ] EasyPost real API integration (currently simulation only)
-- [ ] Real Stripe integration (currently simulation only)
+- [ ] Real Iyzico integration (currently simulation only)

@@ -1,19 +1,19 @@
 # Production Deployment Guide
 
-Deploy the Exchange Platform to Oracle Cloud Free Tier with DuckDNS subdomain and automatic HTTPS.
+Deploy the Takasla Exchange Platform to a VPS with DuckDNS subdomain and automatic HTTPS.
 
-**What you get:**
-- 4 ARM CPUs + 24GB RAM + 200GB disk — **free forever**
-- HTTPS with auto-renewing Let's Encrypt certificates
-- Two subdomains: `YOURNAME.duckdns.org` (user app) + `YOURNAME-admin.duckdns.org` (admin panel)
+**Current setup:**
+- DigitalOcean droplet: `134.209.198.150` (4 vCPU, 8 GB RAM, Ubuntu 22.04)
+- Domains: `takasla.duckdns.org` (user app) + `takasla-admin.duckdns.org` (admin panel)
+- HTTPS with auto-renewing Let's Encrypt certificates via Caddy
 
 ---
 
 ## Prerequisites
 
+- A VPS (DigitalOcean, Oracle Cloud, Hetzner, etc.) with Ubuntu 22.04
 - A GitHub account (for hosting your code)
 - A Google/GitHub account (for DuckDNS login)
-- A credit card (Oracle requires it for signup, but **will never charge** for Always Free resources)
 
 ---
 
@@ -21,111 +21,47 @@ Deploy the Exchange Platform to Oracle Cloud Free Tier with DuckDNS subdomain an
 
 1. Go to [duckdns.org](https://www.duckdns.org/) and log in with GitHub or Google
 2. Create **2 subdomains** — pick a name and create:
-   - `YOURNAME` (e.g., `secureexchange` → `secureexchange.duckdns.org`)
-   - `YOURNAME-admin` (e.g., `secureexchange-admin` → `secureexchange-admin.duckdns.org`)
+   - `YOURNAME` (e.g., `takasla` → `takasla.duckdns.org`)
+   - `YOURNAME-admin` (e.g., `takasla-admin` → `takasla-admin.duckdns.org`)
 3. Leave the IP blank for now (we'll set it after creating the server)
 4. **Copy your DuckDNS token** from the top of the page (you'll need it later)
 
 ---
 
-## Step 2: Create Oracle Cloud Account (10 minutes)
+## Step 2: Create a VPS
 
-1. Go to [cloud.oracle.com](https://cloud.oracle.com/) → **Sign Up**
-2. Fill in your details, add a credit card (for identity verification only)
-3. Choose your **Home Region** — pick the closest one to your users:
-   - Turkey: `Germany Central (Frankfurt)` or `Saudi Arabia West (Jeddah)`
-   - Europe: `Germany Central (Frankfurt)` or `Netherlands Northwest (Amsterdam)`
-4. Wait for account activation (usually instant, sometimes up to 30 min)
+### Option A: DigitalOcean (recommended)
 
----
+1. Go to [digitalocean.com](https://www.digitalocean.com/) → Create Droplet
+2. **Image:** Ubuntu 22.04
+3. **Plan:** 4 vCPU / 8 GB RAM (minimum for running all 29 containers)
+4. **Region:** Amsterdam (or closest to your users)
+5. **Authentication:** SSH key (recommended) or password
+6. Click **Create Droplet** and copy the public IP
 
-## Step 3: Create the ARM VM (10 minutes)
+### Option B: Oracle Cloud Free Tier
 
-1. Go to **Compute → Instances → Create Instance**
+1. Go to [cloud.oracle.com](https://cloud.oracle.com/) → Sign Up
+2. Create a VM.Standard.A1.Flex (4 ARM CPUs, 24 GB RAM, 200 GB disk) — **free forever**
+3. Open ports 80 and 443 in the Security List
 
-2. **Name:** `exchange-server`
+### After creating the server
 
-3. **Image:** Click **Edit** → Ubuntu → **Canonical Ubuntu 22.04** (aarch64)
-
-4. **Shape:** Click **Change Shape**:
-   - Shape series: **Ampere** (ARM-based)
-   - Shape: **VM.Standard.A1.Flex**
-   - OCPUs: **4** (max free)
-   - Memory: **24 GB** (max free)
-   
-
-5. **Boot volume:** Scroll down → Check "Specify a custom boot volume size" → **200 GB**
-
-6. **SSH Key:** Choose **Generate a key pair** → **Save Private Key** (download the `.key` file)
-   - Keep this file safe! You need it to SSH into your server.
-
-7. Click **Create** — wait for the instance to show `RUNNING` (1-2 minutes)
-
-8. **Copy the Public IP** from the instance details page
-
-9. **Update DuckDNS:** Go back to duckdns.org, enter the public IP for both subdomains, click **update ip**
+1. Update DuckDNS: enter the public IP for both subdomains, click **update ip**
+2. SSH into the server: `ssh root@YOUR_SERVER_IP` (or `ubuntu@` for Oracle Cloud)
 
 ---
 
-## Step 4: Open Firewall Ports (5 minutes)
+## Step 3: Set Up the Server (15 minutes)
 
-Oracle Cloud blocks ports 80/443 by default. You must open them:
+### 3a. Upload and run the setup script
 
-1. From the instance page → Click the **Virtual Cloud Network** link (under Primary VNIC)
-2. Click **Security Lists** → **Default Security List**
-3. Click **Add Ingress Rules** and add these two rules:
-
-| Source CIDR    | Protocol | Destination Port | Description |
-|---------------|----------|-----------------|-------------|
-| `0.0.0.0/0`  | TCP      | `80`            | HTTP        |
-| `0.0.0.0/0`  | TCP      | `443`           | HTTPS       |
-
-4. Click **Add Ingress Rules**
-
----
-
-## Step 5: Push Code to GitHub (5 minutes)
-
-On your **Windows machine** (where the code is):
-
+From your **local machine**:
 ```bash
-# Create a private repo on github.com first, then:
-cd /c/Users/yusuf/Masaüstü/trading
-
-# Initialize git (if not already done)
-git init -b main
-git add -A
-git commit -m "Initial commit — Exchange Platform"
-
-# Add your GitHub repo as remote
-git remote add origin https://github.com/YOURUSER/trading.git
-git push -u origin main
+scp scripts/setup-server.sh root@YOUR_SERVER_IP:/tmp/
 ```
 
-> **Important:** `.env` is in `.gitignore` so your secrets won't be pushed.
-
----
-
-## Step 6: Set Up the Server (15 minutes)
-
-### 6a. SSH into the server
-
-```bash
-# On Windows (Git Bash / WSL / PowerShell):
-# First, fix key permissions (required on Linux/Mac):
-chmod 400 /path/to/your-key.key
-
-ssh -i /path/to/your-key.key ubuntu@YOUR_SERVER_IP
-```
-
-### 6b. Upload and run the setup script
-
-Open a **second terminal** on your Windows machine:
-```bash
-scp -i /path/to/your-key.key scripts/setup-server.sh ubuntu@YOUR_SERVER_IP:/tmp/
-```
-
-Back in the **SSH terminal**:
+On the **server**:
 ```bash
 sudo bash /tmp/setup-server.sh \
   --duckdns-token YOUR_DUCKDNS_TOKEN \
@@ -134,25 +70,25 @@ sudo bash /tmp/setup-server.sh \
 
 This installs Docker, creates swap, sets up firewall, and configures DuckDNS auto-update.
 
-### 6c. Log out and back in (for Docker group permissions)
+### 3b. Log out and back in (for Docker group permissions)
 
 ```bash
 exit
-ssh -i /path/to/your-key.key ubuntu@YOUR_SERVER_IP
+ssh root@YOUR_SERVER_IP
 ```
 
 ---
 
-## Step 7: Clone and Configure (10 minutes)
+## Step 4: Clone and Configure (10 minutes)
 
-### 7a. Clone the repo
+### 4a. Clone the repo
 
 ```bash
 cd /opt/exchange
 git clone https://github.com/YOURUSER/trading.git .
 ```
 
-### 7b. Create production environment
+### 4b. Create production environment
 
 ```bash
 cp .env.production.example .env
@@ -166,36 +102,43 @@ Fill in these critical values:
 | `NEXT_PUBLIC_API_URL` | `https://YOURNAME.duckdns.org/api` |
 | `FRONTEND_URL` | `https://YOURNAME.duckdns.org` |
 | `JWT_SECRET` | Run: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"` |
-| `SMTP_USER` | Your Gmail address |
-| `SMTP_PASS` | Your Gmail App Password (16 chars) |
-| `AUTH_DB_PASSWORD` through `PAYMENT_DB_PASSWORD` | Run for each: `openssl rand -base64 24` |
-| `RABBITMQ_PASSWORD` | Run: `openssl rand -base64 24` |
+| `BREVO_API_KEY` | Your Brevo (Sendinblue) API key for emails |
+| `SMTP_USER` | Your Gmail address (fallback email) |
+| `SMTP_PASS` | Your Gmail App Password (16 chars, fallback) |
+| `AUTH_DB_PASSWORD` through `MESSAGING_DB_PASSWORD` | Run for each: `openssl rand -hex 16` |
+| `RABBITMQ_PASSWORD` | Run: `openssl rand -hex 24` |
 
-The rest can be left blank (shipping, blockchain, R2, Stripe will use simulation/fallback mode).
+Optional (will use simulation/fallback mode if blank):
+- `R2_*` — Cloudflare R2 for file storage (falls back to local disk)
+- `SIGHTENGINE_API_USER` / `SIGHTENGINE_API_SECRET` — AI image detection
+- `SEPOLIA_RPC_URL` / `SEPOLIA_PRIVATE_KEY` — Blockchain anchoring
+- `GELIVER_TOKEN` — Turkish domestic shipping
+- `IYZICO_API_KEY` / `IYZICO_SECRET_KEY` — Turkish payment provider
 
 Save and exit nano: `Ctrl+O`, `Enter`, `Ctrl+X`
 
 ---
 
-## Step 8: Deploy! (15-20 minutes first time)
+## Step 5: Deploy! (15-20 minutes first time)
 
 ```bash
 bash scripts/deploy.sh --domain YOURNAME
 ```
 
 This will:
-1. Generate the Caddyfile from the production template
-2. Build all 16 Docker containers (takes ~15 min on first build, ARM is slower)
-3. Start everything
-4. Wait for health checks
-5. Show you the status
+1. Pull latest code from GitHub
+2. Generate the Caddyfile from the production template
+3. Build all Docker containers (takes ~15 min on first build)
+4. Start everything with production overrides (memory limits, `synchronize: false`)
+5. Wait for health checks
+6. Show you the status
 
 ---
 
-## Step 9: Verify
+## Step 6: Verify
 
 1. Open `https://YOURNAME.duckdns.org` in your browser
-   - You should see the Exchange Platform with a valid HTTPS certificate
+   - You should see Takasla with a valid HTTPS certificate
 2. Open `https://YOURNAME-admin.duckdns.org`
    - You should see the admin panel
 3. Register a new account, check that the verification email arrives
@@ -212,11 +155,41 @@ After making code changes locally:
 git add -A && git commit -m "your changes" && git push
 
 # On the server:
-cd /opt/exchange
-bash scripts/deploy.sh --domain YOURNAME
+ssh root@YOUR_SERVER_IP "cd /opt/exchange && bash scripts/deploy.sh --domain YOURNAME"
 ```
 
 Only changed services will be rebuilt (Docker layer caching).
+
+---
+
+## Important: Production Database Changes
+
+Production uses `TYPEORM_SYNCHRONIZE=false` (set in `docker-compose.prod.yml`). This means **new entity columns are NOT auto-created**. When you add a new column to an entity, you must manually add it to the database:
+
+```bash
+# Example: adding a column to the users table in auth_db
+docker exec trading-postgres-auth-1 psql -U exchange -d auth_db \
+  -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS new_column VARCHAR(100);"
+
+# For each service's DB, the container name follows the pattern:
+# trading-postgres-{service}-1
+# The DB name follows: {service}_db
+```
+
+**Services and their DBs:**
+| Container | DB |
+|-----------|-----|
+| `trading-postgres-auth-1` | `auth_db` |
+| `trading-postgres-user-1` | `user_db` |
+| `trading-postgres-listing-1` | `listing_db` |
+| `trading-postgres-offer-1` | `offer_db` |
+| `trading-postgres-trade-1` | `trade_db` |
+| `trading-postgres-reputation-1` | `reputation_db` |
+| `trading-postgres-dispute-1` | `dispute_db` |
+| `trading-postgres-certificate-1` | `certificate_db` |
+| `trading-postgres-shipping-1` | `shipping_db` |
+| `trading-postgres-payment-1` | `payment_db` |
+| `trading-postgres-messaging-1` | `messaging_db` |
 
 ---
 
@@ -244,8 +217,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 # Run database backup manually
 docker compose exec db-backup sh /backup.sh
 
-# Check disk usage
+# Check disk/memory usage
 df -h
+free -h
 docker system df
 
 # Clean up old Docker images
@@ -258,8 +232,7 @@ docker image prune -f
 
 ### "Certificate provisioning" errors
 Caddy needs ports 80 and 443 open for Let's Encrypt HTTP-01 challenge. Double-check:
-- Oracle security list allows 80 and 443
-- iptables allows 80 and 443 (`sudo iptables -L INPUT -n`)
+- Firewall allows 80 and 443 (`sudo ufw status` or `sudo iptables -L INPUT -n`)
 - DuckDNS points to the correct IP (`ping YOURNAME.duckdns.org`)
 
 ### Services keep restarting
@@ -269,9 +242,29 @@ Common causes:
 - Missing environment variables in .env
 - Wrong database password
 
+### "Column does not exist" error
+This happens when you add a new entity column but production has `synchronize: false`. Fix:
+```bash
+docker exec trading-postgres-{service}-1 psql -U exchange -d {service}_db \
+  -c "ALTER TABLE table_name ADD COLUMN IF NOT EXISTS column_name TYPE;"
+docker compose restart {service-name}
+```
+
+### Admin panel returns 404 on login
+Make sure the `Caddyfile.prod` has `/api/*` routing for the admin domain:
+```
+__ADMIN_DOMAIN__ {
+    handle /api/* {
+        reverse_proxy api-gateway:3000
+    }
+    handle {
+        reverse_proxy admin-frontend:4001
+    }
+}
+```
+
 ### Out of memory
 Check memory: `free -h`
-The 4GB swap should prevent OOM, but if it happens:
 ```bash
 docker compose logs --tail=20  # Find which service crashed
 docker stats --no-stream        # See memory usage per container
@@ -283,11 +276,6 @@ cat /opt/duckdns/duck.log  # Should say "OK"
 curl -s ifconfig.me         # Your server's public IP
 ```
 
-### Cannot SSH after firewall setup
-If you accidentally locked yourself out, use the **Oracle Cloud Console**:
-1. Instance → Console Connection → Create Cloud Shell Connection
-2. Fix iptables from there
-
 ---
 
 ## Architecture Overview
@@ -295,41 +283,38 @@ If you accidentally locked yourself out, use the **Oracle Cloud Console**:
 ```
 Internet
   │
-  ├── https://YOURNAME.duckdns.org
+  ├── https://takasla.duckdns.org
   │     │
   │     └── Caddy (auto-TLS)
   │           ├── /api/geo/* → frontend:4000 (Next.js API routes)
   │           ├── /api/*     → api-gateway:3000
   │           └── /*         → frontend:4000
   │
-  └── https://YOURNAME-admin.duckdns.org
+  └── https://takasla-admin.duckdns.org
         │
         └── Caddy (auto-TLS)
-              └── /* → admin-frontend:4001
+              ├── /api/*     → api-gateway:3000
+              └── /*         → admin-frontend:4001
 
 Internal (Docker network):
   api-gateway:3000 ──→ auth-service:3001
                    ──→ user-service:3002
                    ──→ listing-service:3003
-                   ──→ ... (11 services total)
+                   ──→ ... (12 services total)
 
   Each service ──→ its own PostgreSQL database
   All services ──→ RabbitMQ (events)
-  trade-service ──→ Redis (distributed locks)
+  Most services ──→ Redis (distributed locks, caching)
 ```
 
 ---
 
-## Cost
+## Container Inventory (29 total)
 
-| Resource | Cost |
-|----------|------|
-| Oracle Cloud ARM VM (4 OCPU, 24GB RAM, 200GB) | **Free forever** |
-| DuckDNS subdomain | **Free** |
-| Let's Encrypt TLS certificate | **Free** |
-| **Total** | **$0/month** |
-
-Optional paid add-ons if you want them later:
-- Real domain name (e.g., .com): ~$10/year
-- Cloudflare R2 storage: Free up to 10GB
-- Stripe payments: 2.9% + 30¢ per transaction
+| Category | Containers | Count |
+|----------|-----------|-------|
+| Services | api-gateway, auth, user, listing, offer, trade, reputation, dispute, certificate, shipping, payment, messaging | 12 |
+| Frontends | frontend, admin-frontend | 2 |
+| Databases | postgres-auth, postgres-user, ..., postgres-messaging | 11 |
+| Infrastructure | redis, rabbitmq, caddy, db-backup | 4 |
+| **Total** | | **29** |
