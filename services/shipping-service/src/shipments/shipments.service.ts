@@ -638,6 +638,24 @@ export class ShipmentsService implements OnModuleInit {
     return this.shipmentRepo.findOneBy({ id: shipmentId }) as Promise<ShipmentEntity>;
   }
 
+  async findPendingSimulatedShipments(): Promise<ShipmentEntity[]> {
+    return this.shipmentRepo
+      .createQueryBuilder('s')
+      .where('"trackingNumber" LIKE :prefix', { prefix: 'SIM%' })
+      .andWhere('s.status NOT IN (:...finalStatuses)', {
+        finalStatuses: [ShipmentStatus.DELIVERED, ShipmentStatus.RETURNED, ShipmentStatus.FAILED, ShipmentStatus.CANCELLED],
+      })
+      .getMany();
+  }
+
+  async instantDeliverSimulated(shipment: ShipmentEntity): Promise<void> {
+    if (!shipment.shippedAt) {
+      shipment.shippedAt = new Date();
+    }
+    await this.updateShipmentStatus(shipment, ShipmentStatus.DELIVERED);
+    await this.createEvent(shipment.id, ShipmentStatus.DELIVERED, 'Simulated: Package delivered instantly');
+  }
+
   // --- Private helpers ---
 
   private async syncShipmentStatusFromProvider(shipment: ShipmentEntity): Promise<void> {

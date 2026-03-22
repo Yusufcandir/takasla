@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 import { DatabaseModule, RabbitMQModule, HealthModule } from '@exchange/common';
 import { ShipmentsModule } from './shipments/shipments.module';
@@ -11,6 +12,7 @@ import { ShipmentEventEntity } from './shipments/shipment-event.entity';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     DatabaseModule.forRoot({
       entities: [ShipmentEntity, ShipmentEventEntity],
       migrationsDir: join(__dirname, 'migrations'),
