@@ -5,6 +5,7 @@ import { DatabaseModule, RabbitMQModule, HealthModule, StorageModule } from '@ex
 import { ProfilesModule } from './profiles/profiles.module';
 import { TrustModule } from './trust/trust.module';
 import { AddressesModule } from './addresses/addresses.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 import { ProfileEntity } from './profiles/profile.entity';
 import { TrustScoreEntity } from './trust/trust-score.entity';
 import { AddressEntity } from './addresses/address.entity';
@@ -27,6 +28,7 @@ import { AddressEntity } from './addresses/address.entity';
     ProfilesModule,
     TrustModule,
     AddressesModule,
+    CleanupModule,
   ],
 })
 export class AppModule {}

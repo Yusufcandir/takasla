@@ -5,6 +5,7 @@ import { DatabaseModule, RabbitMQModule, HealthModule } from '@exchange/common';
 import { RatingsModule } from './ratings/ratings.module';
 import { TrustModule } from './trust/trust.module';
 import { FraudModule } from './fraud/fraud.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 import { RatingEntity } from './ratings/rating.entity';
 import { CompletedTradeEntity } from './ratings/completed-trade.entity';
 import { TrustScoreSnapshotEntity } from './trust/trust-score-snapshot.entity';
@@ -27,6 +28,7 @@ import { FraudFlagEntity } from './fraud/fraud-flag.entity';
     RatingsModule,
     TrustModule,
     FraudModule,
+    CleanupModule,
   ],
 })
 export class AppModule {}

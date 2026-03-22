@@ -4,6 +4,7 @@ import { join } from 'path';
 import { DatabaseModule, RabbitMQModule, HealthModule, StorageModule, SightEngineModule } from '@exchange/common';
 import { ListingsModule } from './listings/listings.module';
 import { CategoriesModule } from './categories/categories.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 import { ListingEntity } from './listings/listing.entity';
 import { ListingImageEntity } from './listings/listing-image.entity';
 import { ListingQuestionEntity } from './listings/listing-question.entity';
@@ -29,6 +30,7 @@ import { CategoryEntity } from './categories/category.entity';
     HealthModule,
     ListingsModule,
     CategoriesModule,
+    CleanupModule,
   ],
 })
 export class AppModule {}

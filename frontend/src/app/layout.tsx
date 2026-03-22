@@ -558,7 +558,15 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               <span className="text-slate-400 text-sm">{t('footer.tagline')}</span>
             </div>
             <div className="flex items-center gap-6">
-              <span className="text-slate-500 text-xs">{t('footer.features')}</span>
+              <Link href="/kvkk" className="text-slate-400 hover:text-white text-xs transition-colors">
+                {t('footer.kvkk')}
+              </Link>
+              <Link href="/privacy" className="text-slate-400 hover:text-white text-xs transition-colors">
+                {t('footer.privacy')}
+              </Link>
+              <Link href="/terms" className="text-slate-400 hover:text-white text-xs transition-colors">
+                {t('footer.terms')}
+              </Link>
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { join } from 'path';
 import { DatabaseModule, RabbitMQModule, OutboxModule, HealthModule } from '@exchange/common';
 import { OutboxEntity } from '@exchange/common';
 import { PaymentsModule } from './payments/payments.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 import { PaymentEntity } from './payments/payment.entity';
 
 @Module({
@@ -22,6 +23,7 @@ import { PaymentEntity } from './payments/payment.entity';
     OutboxModule,
     HealthModule,
     PaymentsModule,
+    CleanupModule,
   ],
 })
 export class AppModule {}

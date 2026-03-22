@@ -15,7 +15,8 @@ export class AuthController {
   @Public()
   @Post('register')
   async register(@Body() body: RegisterDto) {
-    return this.authService.register(body.email, body.password, body.displayName ?? '');
+    const consent = !!(body.kvkkConsent && body.termsConsent);
+    return this.authService.register(body.email, body.password, body.displayName ?? '', 'user', consent);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -50,6 +51,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() body: RefreshDto) {
     return this.authService.refresh(body.userId, body.refreshToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-data')
+  async exportMyData(@CurrentUser() user: JwtPayload) {
+    return this.authService.exportUserData(user.sub);
   }
 
   @UseGuards(JwtAuthGuard)

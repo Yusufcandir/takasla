@@ -4,6 +4,9 @@ import { Repository } from 'typeorm';
 import { UserEntity } from './user.entity';
 import { RefreshTokenEntity } from '../tokens/refresh-token.entity';
 import { BannedEmailEntity } from './banned-email.entity';
+import { RabbitMQService } from '@exchange/common';
+import { ROUTING_KEYS } from '@exchange/shared-types';
+import { v4 as uuidv4 } from 'uuid';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -17,14 +20,20 @@ export class UsersService {
     private readonly tokenRepo: Repository<RefreshTokenEntity>,
     @InjectRepository(BannedEmailEntity)
     private readonly bannedEmailRepo: Repository<BannedEmailEntity>,
+    private readonly rabbitMQService: RabbitMQService,
   ) {}
 
-  async create(email: string, password: string, role: string = 'user'): Promise<UserEntity> {
+  async create(email: string, password: string, role: string = 'user', consent?: boolean): Promise<UserEntity> {
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) throw new ConflictException('Email already registered');
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = this.userRepo.create({ email, passwordHash, role });
+    const user = this.userRepo.create({
+      email,
+      passwordHash,
+      role,
+      ...(consent ? { consentedAt: new Date(), consentVersion: '1.0' } : {}),
+    });
     return this.userRepo.save(user);
   }
 
@@ -52,6 +61,15 @@ export class UsersService {
   }
 
   async deleteById(userId: string): Promise<void> {
+    // Publish USER_DELETED event BEFORE deleting — so other services can clean up
+    await this.rabbitMQService.publish(ROUTING_KEYS.AUTH.USER_DELETED, {
+      eventId: uuidv4(),
+      correlationId: uuidv4(),
+      idempotencyKey: `user-deleted:${userId}`,
+      userId,
+    });
+    this.logger.log(`Published USER_DELETED event for user ${userId}`);
+
     await this.tokenRepo.delete({ userId });
     await this.userRepo.delete({ id: userId });
   }

@@ -4,6 +4,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import { randomUUID } from 'crypto';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'fs';
+import sharp from 'sharp';
 
 export interface UploadResult {
   key: string;
@@ -44,6 +45,23 @@ export class StorageService {
     }
   }
 
+  private isImageMimeType(contentType: string): boolean {
+    return /^image\/(jpeg|jpg|png|webp|avif|tiff)$/i.test(contentType);
+  }
+
+  private async stripExifMetadata(buffer: Buffer, contentType: string): Promise<Buffer> {
+    if (!this.isImageMimeType(contentType)) {
+      return buffer;
+    }
+    try {
+      // .rotate() auto-orients based on EXIF, then strips all metadata (GPS, camera info, etc.)
+      return await sharp(buffer).rotate().toBuffer();
+    } catch (err) {
+      this.logger.warn(`Failed to strip EXIF metadata, uploading original: ${err}`);
+      return buffer;
+    }
+  }
+
   async upload(
     prefix: string,
     buffer: Buffer,
@@ -54,12 +72,15 @@ export class StorageService {
     const filename = `${randomUUID()}${ext}`;
     const key = `${prefix}/${filename}`;
 
+    // Strip EXIF metadata (GPS, camera info) from images before storing
+    const cleanBuffer = await this.stripExifMetadata(buffer, contentType);
+
     if (this.r2Enabled && this.s3Client) {
       await this.s3Client.send(
         new PutObjectCommand({
           Bucket: this.bucketName,
           Key: key,
-          Body: buffer,
+          Body: cleanBuffer,
           ContentType: contentType,
         }),
       );
@@ -69,7 +90,7 @@ export class StorageService {
     // Local fallback
     const dir = join(this.localFallbackDir, prefix);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, filename), buffer);
+    writeFileSync(join(dir, filename), cleanBuffer);
     return { key, url: '' };
   }
 

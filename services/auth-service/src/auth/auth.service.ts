@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsersService } from '../users/users.service';
@@ -11,6 +11,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly tokensService: TokensService,
@@ -20,13 +22,13 @@ export class AuthService {
     private readonly verificationTokenRepo: Repository<VerificationTokenEntity>,
   ) {}
 
-  async register(email: string, password: string, displayName: string, role: string = 'user') {
+  async register(email: string, password: string, displayName: string, role: string = 'user', consent?: boolean) {
     const banned = await this.usersService.isEmailBanned(email);
     if (banned) {
       throw new ForbiddenException('This email address has been banned from the platform');
     }
 
-    const user = await this.usersService.create(email, password, role);
+    const user = await this.usersService.create(email, password, role, consent);
 
     await this.rabbitMQService.publish(ROUTING_KEYS.AUTH.USER_REGISTERED, {
       eventId: uuidv4(),
@@ -113,6 +115,43 @@ export class AuthService {
     const newRefreshToken = await this.tokensService.generateRefreshToken(user.id);
 
     return { accessToken, refreshToken: newRefreshToken, userId: user.id };
+  }
+
+  async exportUserData(userId: string): Promise<Record<string, unknown>> {
+    const user = await this.usersService.findById(userId);
+
+    const data: Record<string, unknown> = {
+      exportDate: new Date().toISOString(),
+      account: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        consentedAt: user.consentedAt,
+        consentVersion: user.consentVersion,
+        createdAt: user.createdAt,
+      },
+    };
+
+    // Fetch data from other services (best-effort — don't fail if a service is down)
+    const fetchService = async (url: string, key: string) => {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          data[key] = await res.json();
+        }
+      } catch (err) {
+        this.logger.warn(`Could not fetch ${key} data for export: ${err}`);
+      }
+    };
+
+    await Promise.all([
+      fetchService(`http://user-service:3002/profiles/${userId}`, 'profile'),
+      fetchService(`http://user-service:3002/users/${userId}/addresses`, 'addresses'),
+      fetchService(`http://listing-service:3003/listings?userId=${userId}&limit=1000`, 'listings'),
+    ]);
+
+    return data;
   }
 
   async banUser(userId: string, bannedBy: string): Promise<void> {

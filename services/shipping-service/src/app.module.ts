@@ -4,6 +4,7 @@ import { join } from 'path';
 import { DatabaseModule, RabbitMQModule, HealthModule } from '@exchange/common';
 import { ShipmentsModule } from './shipments/shipments.module';
 import { CarriersModule } from './carriers/carriers.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 import { ShipmentEntity } from './shipments/shipment.entity';
 import { ShipmentEventEntity } from './shipments/shipment-event.entity';
 
@@ -23,6 +24,7 @@ import { ShipmentEventEntity } from './shipments/shipment-event.entity';
     HealthModule,
     CarriersModule,
     ShipmentsModule,
+    CleanupModule,
   ],
 })
 export class AppModule {}

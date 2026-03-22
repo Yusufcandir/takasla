@@ -16,6 +16,8 @@ export default function RegisterPage() {
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
+  const [kvkkConsent, setKvkkConsent] = useState(false);
+  const [termsConsent, setTermsConsent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,9 +140,46 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* KVKK Consent Checkboxes */}
+            <div className="space-y-3 pt-2">
+              <label className="flex items-start gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={kvkkConsent}
+                  onChange={(e) => setKvkkConsent(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-navy-900 focus:ring-navy-900 shrink-0"
+                />
+                <span className="text-sm text-slate-600 leading-snug">
+                  {t('auth.kvkk_consent')}{' '}
+                  <a href="/kvkk" target="_blank" className="text-navy-900 font-medium hover:underline">
+                    {t('auth.kvkk_consent_link')}
+                  </a>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={termsConsent}
+                  onChange={(e) => setTermsConsent(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-navy-900 focus:ring-navy-900 shrink-0"
+                />
+                <span className="text-sm text-slate-600 leading-snug">
+                  {t('auth.terms_consent')}{' '}
+                  <a href="/terms" target="_blank" className="text-navy-900 font-medium hover:underline">
+                    {t('auth.terms_link')}
+                  </a>
+                  {' '}{t('auth.terms_consent_and')}{' '}
+                  <a href="/privacy" target="_blank" className="text-navy-900 font-medium hover:underline">
+                    {t('auth.privacy_link')}
+                  </a>
+                </span>
+              </label>
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !kvkkConsent || !termsConsent}
               className="btn-primary w-full"
             >
               {loading ? (

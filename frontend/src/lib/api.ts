@@ -128,11 +128,13 @@ export const api = {
 
 // Auth
 export const authApi = {
-  register: (email: string, password: string, displayName: string) =>
+  register: (email: string, password: string, displayName: string, kvkkConsent = true, termsConsent = true) =>
     api.post<{ message: string; userId: string }>('/auth/register', {
       email,
       password,
       displayName,
+      kvkkConsent,
+      termsConsent,
     }),
   login: (email: string, password: string) =>
     api.post<{ accessToken: string; refreshToken: string; userId: string }>('/auth/login', {

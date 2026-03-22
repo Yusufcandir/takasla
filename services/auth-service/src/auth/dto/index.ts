@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsOptional, MinLength, IsUUID, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsString, IsOptional, MinLength, IsUUID, IsNotEmpty, IsBoolean, Equals } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -11,6 +11,14 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   displayName?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  kvkkConsent?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  termsConsent?: boolean;
 }
 
 export class LoginDto {

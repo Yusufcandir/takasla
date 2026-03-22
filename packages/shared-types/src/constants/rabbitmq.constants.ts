@@ -5,6 +5,7 @@ export const ROUTING_KEYS = {
   AUTH: {
     USER_REGISTERED: 'auth.user.registered',
     USER_VERIFIED: 'auth.user.verified',
+    USER_DELETED: 'auth.user.deleted',
   },
   LISTING: {
     CREATED: 'listing.created',
@@ -85,4 +86,12 @@ export const QUEUES = {
   TRADE_ON_CENTER: 'trade.on-center-events',
   SHIPPING_ON_CENTER: 'shipping.on-center-events',
   AUTH_ON_MODERATION: 'auth.on-moderation-events',
+  USER_CLEANUP: 'user.on-user-deleted',
+  LISTING_CLEANUP: 'listing.on-user-deleted',
+  OFFER_CLEANUP: 'offer.on-user-deleted',
+  TRADE_CLEANUP: 'trade.on-user-deleted',
+  REPUTATION_CLEANUP: 'reputation.on-user-deleted',
+  DISPUTE_CLEANUP: 'dispute.on-user-deleted',
+  SHIPPING_CLEANUP: 'shipping.on-user-deleted',
+  PAYMENT_CLEANUP: 'payment.on-user-deleted',
 } as const;

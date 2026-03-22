@@ -4,6 +4,7 @@ import { join } from 'path';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule, RabbitMQModule, HealthModule } from '@exchange/common';
 import { DisputesModule } from './disputes/disputes.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 import { DisputeEntity } from './disputes/dispute.entity';
 import { EvidenceEntity } from './disputes/evidence.entity';
 import { ModeratorActionEntity } from './disputes/moderator-action.entity';
@@ -24,6 +25,7 @@ import { ModeratorActionEntity } from './disputes/moderator-action.entity';
     RabbitMQModule.forRoot(),
     HealthModule,
     DisputesModule,
+    CleanupModule,
   ],
 })
 export class AppModule {}

@@ -1,8 +1,11 @@
 packages:
-  - 'packages/*'
-  - 'services/*'
-  - 'frontend'
-  - 'admin-frontend'
+  - packages/*
+  - services/*
+  - frontend
+  - admin-frontend
+
+ignoredBuiltDependencies:
+  - sharp
 
 onlyBuiltDependencies:
   - '@nestjs/core'

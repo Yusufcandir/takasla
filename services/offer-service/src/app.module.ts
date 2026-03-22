@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { join } from 'path';
 import { DatabaseModule, RabbitMQModule, RedisModule, HealthModule } from '@exchange/common';
 import { OffersModule } from './offers/offers.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 import { OfferEntity } from './offers/offer.entity';
 import { CounterOfferEntity } from './offers/counter-offer.entity';
 
@@ -22,6 +23,7 @@ import { CounterOfferEntity } from './offers/counter-offer.entity';
     RedisModule.forRoot(),
     HealthModule,
     OffersModule,
+    CleanupModule,
   ],
 })
 export class AppModule {}

@@ -18,6 +18,7 @@ import { VerificationCenterEntity } from './centers/verification-center.entity';
 import { CenterVerificationEntity } from './centers/center-verification.entity';
 import { CentersModule } from './centers/centers.module';
 import { ProofImageHashEntity } from './proofs/proof-image-hash.entity';
+import { CleanupModule } from './cleanup/cleanup.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ProofImageHashEntity } from './proofs/proof-image-hash.entity';
     RiskModule,
     EscrowModule,
     CentersModule,
+    CleanupModule,
   ],
 })
 export class AppModule {}
