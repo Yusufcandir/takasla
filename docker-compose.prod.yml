@@ -9,72 +9,96 @@ services:
   # ============ INFRASTRUCTURE — Memory Limits ============
 
   postgres-auth:
+    ports:
+      - "127.0.0.1:5432:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-user:
+    ports:
+      - "127.0.0.1:5433:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-listing:
+    ports:
+      - "127.0.0.1:5434:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-offer:
+    ports:
+      - "127.0.0.1:5435:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-trade:
+    ports:
+      - "127.0.0.1:5436:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-reputation:
+    ports:
+      - "127.0.0.1:5437:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-dispute:
+    ports:
+      - "127.0.0.1:5438:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-certificate:
+    ports:
+      - "127.0.0.1:5439:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-shipping:
+    ports:
+      - "127.0.0.1:5440:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   postgres-payment:
+    ports:
+      - "127.0.0.1:5441:5432"
     deploy:
       resources:
         limits:
           memory: 256M
 
   redis:
+    ports:
+      - "127.0.0.1:6379:6379"
     deploy:
       resources:
         limits:
           memory: 128M
 
   rabbitmq:
+    ports:
+      - "127.0.0.1:15672:15672"
     deploy:
       resources:
         limits:
@@ -182,6 +206,8 @@ services:
           memory: 384M
 
   postgres-messaging:
+    ports:
+      - "127.0.0.1:5442:5432"
     deploy:
       resources:
         limits:
