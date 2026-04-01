@@ -3,7 +3,7 @@ import { JwtAuthGuard, CurrentUser, Public } from '@exchange/common';
 import { JwtPayload } from '@exchange/shared-types';
 import { PaymentsService } from './payments.service';
 import { IyzicoService } from '../iyzico/iyzico.service';
-import { CreateBoostDto } from './dto';
+import { CreateBoostDto, CreateInsuranceDto } from './dto';
 import { Response } from 'express';
 
 @Controller('payments')
@@ -40,6 +40,16 @@ export class PaymentsController {
     );
   }
 
+  @Post('insurance')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createInsurance(
+    @Body() body: CreateInsuranceDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.paymentsService.createInsurancePayment(body.tradeId, user.sub, body.riskLevel);
+  }
+
   @Post(':id/checkout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -67,6 +77,17 @@ export class PaymentsController {
       return { error: 'Simulation not available when iyzico is configured' };
     }
     await this.paymentsService.handleSimulatedPayment(id, user.sub);
+    return { success: true };
+  }
+
+  @Post(':id/cancel-insurance')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async cancelInsurance(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    await this.paymentsService.cancelInsurancePayment(id, user.sub);
     return { success: true };
   }
 

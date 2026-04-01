@@ -9,3 +9,8 @@ export class CreateBoostDto {
   @IsNumber() @Min(0) @Type(() => Number) amount!: number;
   @IsString() currency!: string;
 }
+
+export class CreateInsuranceDto {
+  @IsUUID() tradeId!: string;
+  @IsIn(['MEDIUM', 'HIGH']) riskLevel!: string;
+}

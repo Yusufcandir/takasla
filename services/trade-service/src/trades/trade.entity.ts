@@ -84,6 +84,12 @@ export class TradeEntity {
   @Column({ name: 'party_b_paid', default: false })
   partyBPaid!: boolean;
 
+  @Column({ name: 'party_a_insured', default: false })
+  partyAInsured!: boolean;
+
+  @Column({ name: 'party_b_insured', default: false })
+  partyBInsured!: boolean;
+
   @Column({ name: 'party_a_confirmed_receipt', default: false })
   partyAConfirmedReceipt!: boolean;
 

@@ -107,6 +107,8 @@ export interface Trade {
   partyBLocalPickupConfirmed: boolean;
   partyAPaid: boolean;
   partyBPaid: boolean;
+  partyAInsured: boolean;
+  partyBInsured: boolean;
   partyAConfirmedReceipt?: boolean;
   partyBConfirmedReceipt?: boolean;
   centerAId?: string;

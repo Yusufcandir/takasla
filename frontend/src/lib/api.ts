@@ -372,6 +372,10 @@ export const paymentsApi = {
     api.post<{ checkoutUrl: string } | { simulated: boolean }>(`/payments/${paymentId}/checkout`, {}),
   simulatePayment: (paymentId: string) =>
     api.post<{ success: boolean }>(`/payments/${paymentId}/simulate-payment`, {}),
+  createInsurance: (tradeId: string, riskLevel: string) =>
+    api.post<Payment>('/payments/insurance', { tradeId, riskLevel }),
+  cancelInsurance: (paymentId: string) =>
+    api.post<{ success: boolean }>(`/payments/${paymentId}/cancel-insurance`, {}),
 };
 
 // Shipping

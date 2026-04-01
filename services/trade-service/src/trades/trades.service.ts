@@ -102,13 +102,18 @@ export class TradesService implements OnModuleInit {
       QUEUES.TRADE_ON_PAYMENT,
       [ROUTING_KEYS.PAYMENT.SUCCEEDED],
       async (msg: Record<string, unknown>) => {
-        const { tradeId, userId } = msg as { tradeId: string; userId: string };
+        const { tradeId, userId, type, allUserPaymentsComplete } = msg as {
+          tradeId: string;
+          userId: string;
+          type?: string;
+          allUserPaymentsComplete?: boolean;
+        };
         if (!tradeId) {
           this.logger.log(`Skipping non-trade payment event (no tradeId)`);
           return;
         }
-        this.logger.log(`Payment succeeded for trade ${tradeId}, user ${userId}`);
-        await this.handlePaymentSucceeded(tradeId, userId);
+        this.logger.log(`Payment succeeded for trade ${tradeId}, user ${userId}, type=${type}, allComplete=${allUserPaymentsComplete}`);
+        await this.handlePaymentSucceeded(tradeId, userId, type, allUserPaymentsComplete);
       },
     );
 
@@ -783,7 +788,12 @@ export class TradesService implements OnModuleInit {
     });
   }
 
-  private async handlePaymentSucceeded(tradeId: string, userId: string): Promise<void> {
+  private async handlePaymentSucceeded(
+    tradeId: string,
+    userId: string,
+    type?: string,
+    allUserPaymentsComplete?: boolean,
+  ): Promise<void> {
     const trade = await this.tradeRepo.findOne({ where: { id: tradeId } });
     if (!trade) return;
 
@@ -796,18 +806,32 @@ export class TradesService implements OnModuleInit {
     }
 
     await this.dataSource.transaction(async (manager) => {
-      // Atomic column update — no load→modify→save race condition
       const updateFields: Record<string, boolean> = {};
-      if (isPartyA) updateFields.partyAPaid = true;
-      if (isPartyB) updateFields.partyBPaid = true;
-      await manager.getRepository(TradeEntity).update({ id: tradeId }, updateFields);
+
+      // If this is an insurance payment, mark the party as insured
+      if (type === 'trade_insurance') {
+        if (isPartyA) updateFields.partyAInsured = true;
+        if (isPartyB) updateFields.partyBInsured = true;
+      }
+
+      // Only mark party as paid when ALL their payments are complete
+      // (backwards compatible: if allUserPaymentsComplete is undefined, treat as true)
+      const allComplete = allUserPaymentsComplete !== false;
+      if (allComplete) {
+        if (isPartyA) updateFields.partyAPaid = true;
+        if (isPartyB) updateFields.partyBPaid = true;
+      }
+
+      if (Object.keys(updateFields).length > 0) {
+        await manager.getRepository(TradeEntity).update({ id: tradeId }, updateFields);
+      }
 
       await manager.save(TradeEventEntity, {
         tradeId,
-        eventType: 'trade.payment_received',
+        eventType: type === 'trade_insurance' ? 'trade.insurance_payment_received' : 'trade.payment_received',
         fromState: trade.state,
         toState: trade.state,
-        payload: { userId, party: isPartyA ? 'A' : 'B' },
+        payload: { userId, party: isPartyA ? 'A' : 'B', type, allUserPaymentsComplete: allComplete },
         triggeredBy: userId,
       });
     });

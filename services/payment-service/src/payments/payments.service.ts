@@ -8,6 +8,11 @@ import { OutboxService, RabbitMQService } from '@exchange/common';
 import { IyzicoService } from '../iyzico/iyzico.service';
 import { v4 as uuidv4 } from 'uuid';
 
+const INSURANCE_PRICES: Record<string, number> = {
+  MEDIUM: 300,
+  HIGH: 1000,
+};
+
 @Injectable()
 export class PaymentsService implements OnModuleInit {
   private readonly logger = new Logger(PaymentsService.name);
@@ -228,6 +233,63 @@ export class PaymentsService implements OnModuleInit {
     return this.paymentRepo.save(payment);
   }
 
+  async createInsurancePayment(tradeId: string, userId: string, riskLevel: string): Promise<PaymentEntity> {
+    const price = INSURANCE_PRICES[riskLevel];
+    if (!price) {
+      throw new ForbiddenException('Insurance is only available for MEDIUM and HIGH risk trades');
+    }
+
+    // Check if insurance payment already exists for this user + trade
+    const existing = await this.paymentRepo.findOne({
+      where: { tradeId, userId, type: 'trade_insurance' },
+    });
+    if (existing) {
+      throw new ForbiddenException('Insurance payment already exists for this trade');
+    }
+
+    const payment = this.paymentRepo.create({
+      tradeId,
+      userId,
+      type: 'trade_insurance',
+      amount: price,
+      currency: 'TRY',
+      feePercentage: 0,
+      status: 'pending',
+      metadata: { riskLevel },
+    });
+
+    const saved = await this.paymentRepo.save(payment);
+    this.logger.log(`Created insurance payment for trade ${tradeId}, user ${userId}, risk ${riskLevel}, amount ${price} TRY`);
+    return saved;
+  }
+
+  async cancelInsurancePayment(paymentId: string, userId: string): Promise<void> {
+    const payment = await this.findOne(paymentId);
+
+    if (payment.userId !== userId) {
+      throw new ForbiddenException('Not your payment');
+    }
+    if (payment.type !== 'trade_insurance') {
+      throw new ForbiddenException('Not an insurance payment');
+    }
+    if (payment.status !== 'pending') {
+      throw new ForbiddenException('Can only cancel pending insurance payments');
+    }
+
+    await this.paymentRepo.remove(payment);
+    this.logger.log(`Cancelled insurance payment ${paymentId} for user ${userId}`);
+  }
+
+  /**
+   * Check if all payments for a user on a trade are completed.
+   * Returns true if every payment (trade_fee + trade_insurance if any) is succeeded.
+   */
+  private async areAllUserPaymentsComplete(tradeId: string, userId: string): Promise<boolean> {
+    const payments = await this.paymentRepo.find({ where: { tradeId, userId } });
+    if (payments.length === 0) return false;
+    return payments.every((p) => p.status === 'succeeded');
+  }
+
   async createCheckoutSession(paymentId: string, userId: string): Promise<{ checkoutUrl: string }> {
     const payment = await this.findOne(paymentId);
 
@@ -276,9 +338,15 @@ export class PaymentsService implements OnModuleInit {
           payment.providerPaymentId = result.paymentTransactionId;
           payment.paidAt = new Date();
           // Escrow: hold trade payments until trade completes; boost payments release immediately
-          payment.escrowStatus = payment.type === 'trade_fee' ? 'held' : 'released';
-          if (payment.type !== 'trade_fee') payment.escrowReleasedAt = new Date();
+          const isTradePayment = payment.type === 'trade_fee' || payment.type === 'trade_insurance';
+          payment.escrowStatus = isTradePayment ? 'held' : 'released';
+          if (!isTradePayment) payment.escrowReleasedAt = new Date();
           await manager.save(payment);
+
+          // Check if all user payments for this trade are now complete
+          const allComplete = payment.tradeId
+            ? await this.areAllUserPaymentsComplete(payment.tradeId, payment.userId)
+            : true;
 
           await this.outboxService.addToOutbox(
             manager,
@@ -291,6 +359,8 @@ export class PaymentsService implements OnModuleInit {
               userId: payment.userId,
               amount: payment.amount,
               currency: payment.currency,
+              type: payment.type,
+              allUserPaymentsComplete: allComplete,
             },
           );
 
@@ -339,9 +409,15 @@ export class PaymentsService implements OnModuleInit {
       payment.providerPaymentId = `sim_pi_${uuidv4()}`;
       payment.paidAt = new Date();
       // Escrow: hold trade payments until trade completes; boost payments release immediately
-      payment.escrowStatus = payment.type === 'trade_fee' ? 'held' : 'released';
-      if (payment.type !== 'trade_fee') payment.escrowReleasedAt = new Date();
+      const isTradePayment = payment.type === 'trade_fee' || payment.type === 'trade_insurance';
+      payment.escrowStatus = isTradePayment ? 'held' : 'released';
+      if (!isTradePayment) payment.escrowReleasedAt = new Date();
       await manager.save(payment);
+
+      // Check if all user payments for this trade are now complete
+      const allComplete = payment.tradeId
+        ? await this.areAllUserPaymentsComplete(payment.tradeId, payment.userId)
+        : true;
 
       await this.outboxService.addToOutbox(
         manager,
@@ -354,6 +430,8 @@ export class PaymentsService implements OnModuleInit {
           userId: payment.userId,
           amount: payment.amount,
           currency: payment.currency,
+          type: payment.type,
+          allUserPaymentsComplete: allComplete,
         },
       );
 
