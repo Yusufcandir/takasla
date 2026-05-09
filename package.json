@@ -17,6 +17,7 @@
     "db:migrate": "pnpm -r db:migrate",
     "clean": "pnpm -r clean"
   },
+  "packageManager": "pnpm@10.30.0",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
