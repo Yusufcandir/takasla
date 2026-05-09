@@ -155,7 +155,7 @@ export class ListingsService {
       .where('listing.status = :status', { status: ListingStatus.ACTIVE });
 
     if (filters?.categoryId) {
-      qb.andWhere('listing.category_id = :categoryId', { categoryId: filters.categoryId });
+      qb.andWhere('listing.categoryId = :categoryId', { categoryId: filters.categoryId });
     }
 
     if (filters?.condition) {
@@ -164,17 +164,17 @@ export class ListingsService {
 
     switch (filters?.sort) {
       case 'oldest':
-        qb.orderBy('listing.created_at', 'ASC');
+        qb.orderBy('listing.createdAt', 'ASC');
         break;
       case 'value_high':
-        qb.orderBy('listing.declared_value', 'DESC');
+        qb.orderBy('listing.declaredValue', 'DESC');
         break;
       case 'value_low':
-        qb.orderBy('listing.declared_value', 'ASC');
+        qb.orderBy('listing.declaredValue', 'ASC');
         break;
       case 'newest':
       default:
-        qb.orderBy('listing.created_at', 'DESC');
+        qb.orderBy('listing.createdAt', 'DESC');
         break;
     }
 
