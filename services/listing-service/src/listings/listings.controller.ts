@@ -26,8 +26,18 @@ export class ListingsController {
 
   @Public()
   @Get()
-  async findAll(@Query('page') page = '1', @Query('limit') limit = '20') {
-    return this.listingsService.findAll(parseInt(page), parseInt(limit));
+  async findAll(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('categoryId') categoryId?: string,
+    @Query('condition') condition?: string,
+    @Query('sort') sort?: string,
+  ) {
+    return this.listingsService.findAll(parseInt(page), parseInt(limit), {
+      categoryId,
+      condition,
+      sort,
+    });
   }
 
   // Static sub-paths must come before :id to avoid being swallowed by the wildcard

@@ -155,8 +155,13 @@ export const authApi = {
 
 // Listings
 export const listingsApi = {
-  getAll: (page = 1, limit = 20) =>
-    api.get<{ items: Listing[]; total: number }>(`/listings?page=${page}&limit=${limit}`),
+  getAll: (page = 1, limit = 20, filters?: { categoryId?: string; condition?: string; sort?: string }) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (filters?.categoryId) params.set('categoryId', filters.categoryId);
+    if (filters?.condition) params.set('condition', filters.condition);
+    if (filters?.sort) params.set('sort', filters.sort);
+    return api.get<{ items: Listing[]; total: number }>(`/listings?${params}`);
+  },
   getById: (id: string) => api.get<Listing>(`/listings/${id}`),
   getByUser: (userId: string) => api.get<Listing[]>(`/listings/user/${userId}`),
   create: (data: {
@@ -200,6 +205,11 @@ export const listingsApi = {
   getSpotlight: () => api.get<Listing[]>('/listings/spotlight'),
   boost: (id: string, tier: 'featured' | 'spotlight') =>
     api.post<{ paymentId: string; tier: string; amount: number }>(`/listings/${id}/boost`, { tier }),
+};
+
+// Categories
+export const categoriesApi = {
+  getAll: () => api.get<import('@/types').Category[]>('/categories'),
 };
 
 // Profile (public)

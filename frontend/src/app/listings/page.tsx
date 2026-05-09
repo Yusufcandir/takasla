@@ -3,9 +3,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { listingsApi, getImageUrl } from '@/lib/api';
+import { listingsApi, categoriesApi, getImageUrl } from '@/lib/api';
 import { useTranslation } from '@/contexts/LanguageContext';
-import type { Listing } from '@/types';
+import type { Listing, Category } from '@/types';
 
 const STATUS_STYLES: Record<string, string> = {
   active: 'badge-emerald',
@@ -39,7 +39,15 @@ function ListingsContent() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCondition, setSelectedCondition] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   const limit = 20;
+
+  useEffect(() => {
+    categoriesApi.getAll().then(setCategories).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -54,7 +62,11 @@ function ListingsContent() {
         .finally(() => setLoading(false));
     } else {
       listingsApi
-        .getAll(page, limit)
+        .getAll(page, limit, {
+          categoryId: selectedCategory || undefined,
+          condition: selectedCondition || undefined,
+          sort: sortBy || undefined,
+        })
         .then((data) => {
           setListings(data.items);
           setTotal(data.total);
@@ -62,7 +74,32 @@ function ListingsContent() {
         .catch(() => {})
         .finally(() => setLoading(false));
     }
-  }, [page, userId]);
+  }, [page, userId, selectedCategory, selectedCondition, sortBy]);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    setPage(1);
+  };
+
+  const handleConditionChange = (condition: string) => {
+    setSelectedCondition(condition);
+    setPage(1);
+  };
+
+  const handleSortChange = (sort: string) => {
+    setSortBy(sort);
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setSelectedCategory('');
+    setSelectedCondition('');
+    setSortBy('newest');
+    setSearch('');
+    setPage(1);
+  };
+
+  const hasActiveFilters = selectedCategory || selectedCondition || sortBy !== 'newest';
 
   const filtered = search
     ? listings.filter(
@@ -90,9 +127,9 @@ function ListingsContent() {
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
+      {/* Search + Sort Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-md">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -104,7 +141,72 @@ function ListingsContent() {
             className="input pl-10"
           />
         </div>
+        {!userId && (
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedCondition}
+              onChange={(e) => handleConditionChange(e.target.value)}
+              className="input py-2 text-sm w-auto pr-8"
+            >
+              <option value="">{t('listings.filter_all_conditions')}</option>
+              <option value="new">{t('condition.new')}</option>
+              <option value="like_new">{t('condition.like_new')}</option>
+              <option value="good">{t('condition.good')}</option>
+              <option value="fair">{t('condition.fair')}</option>
+              <option value="poor">{t('condition.poor')}</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="input py-2 text-sm w-auto pr-8"
+            >
+              <option value="newest">{t('listings.sort_newest')}</option>
+              <option value="oldest">{t('listings.sort_oldest')}</option>
+              <option value="value_high">{t('listings.sort_value_high')}</option>
+              <option value="value_low">{t('listings.sort_value_low')}</option>
+            </select>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs text-slate-500 hover:text-slate-700 underline whitespace-nowrap"
+              >
+                {t('listings.clear_filters')}
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Category Chips */}
+      {!userId && categories.length > 0 && (
+        <div className="mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            <button
+              onClick={() => handleCategoryChange('')}
+              className={`whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                selectedCategory === ''
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+              }`}
+            >
+              {t('listings.filter_all_categories')}
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => handleCategoryChange(cat.id)}
+                className={`whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                  selectedCategory === cat.id
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                }`}
+              >
+                {t(`category.${cat.name}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (

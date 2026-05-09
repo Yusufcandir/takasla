@@ -144,14 +144,43 @@ export class ListingsService {
     return this.findById(listing.id);
   }
 
-  async findAll(page = 1, limit = 20): Promise<{ items: ListingEntity[]; total: number }> {
-    const [items, total] = await this.listingRepo.findAndCount({
-      where: { status: ListingStatus.ACTIVE },
-      relations: ['images', 'category'],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  async findAll(
+    page = 1,
+    limit = 20,
+    filters?: { categoryId?: string; condition?: string; sort?: string },
+  ): Promise<{ items: ListingEntity[]; total: number }> {
+    const qb = this.listingRepo.createQueryBuilder('listing')
+      .leftJoinAndSelect('listing.images', 'images')
+      .leftJoinAndSelect('listing.category', 'category')
+      .where('listing.status = :status', { status: ListingStatus.ACTIVE });
+
+    if (filters?.categoryId) {
+      qb.andWhere('listing.category_id = :categoryId', { categoryId: filters.categoryId });
+    }
+
+    if (filters?.condition) {
+      qb.andWhere('listing.condition = :condition', { condition: filters.condition });
+    }
+
+    switch (filters?.sort) {
+      case 'oldest':
+        qb.orderBy('listing.created_at', 'ASC');
+        break;
+      case 'value_high':
+        qb.orderBy('listing.declared_value', 'DESC');
+        break;
+      case 'value_low':
+        qb.orderBy('listing.declared_value', 'ASC');
+        break;
+      case 'newest':
+      default:
+        qb.orderBy('listing.created_at', 'DESC');
+        break;
+    }
+
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
 
     // Sort featured listings first within the page
     const now = new Date();
