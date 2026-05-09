@@ -21,6 +21,9 @@
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@nestjs/core", "sharp", "bcrypt", "cpu-features", "ssh2"]
+  },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/pg": "^8.11.0",
