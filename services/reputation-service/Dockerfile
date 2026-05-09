@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 COPY .npmrc pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/shared-types/package.json ./packages/shared-types/
