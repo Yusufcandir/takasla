@@ -99,7 +99,7 @@ function AuthenticatedHome({
         {recentListings.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
             {recentListings.map((listing) => {
-              const thumb = listing.images?.[0]?.url;
+              const thumb = listing.images?.[0]?.thumbnailUrl || listing.images?.[0]?.url;
               return (
                 <Link
                   key={listing.id}
@@ -111,7 +111,7 @@ function AuthenticatedHome({
                       <img
                         src={getImageUrl(thumb)}
                         alt={listing.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover" loading="lazy" decoding="async"
                       />
                     </div>
                   ) : (
@@ -264,7 +264,7 @@ function MarketingHome({ spotlightListings }: { spotlightListings: Listing[] }) 
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
               {spotlightListings.map((listing) => {
-                const thumb = listing.images?.[0]?.url;
+                const thumb = listing.images?.[0]?.thumbnailUrl || listing.images?.[0]?.url;
                 return (
                   <Link
                     key={listing.id}
@@ -273,7 +273,7 @@ function MarketingHome({ spotlightListings }: { spotlightListings: Listing[] }) 
                   >
                     {thumb ? (
                       <div className="aspect-[4/3] bg-slate-100 overflow-hidden">
-                        <img src={getImageUrl(thumb)} alt={listing.title} className="w-full h-full object-cover" />
+                        <img src={getImageUrl(thumb)} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                       </div>
                     ) : (
                       <div className="aspect-[4/3] bg-slate-100 flex items-center justify-center">

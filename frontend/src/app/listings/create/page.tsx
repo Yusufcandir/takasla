@@ -229,11 +229,14 @@ export default function CreateListingPage() {
     setLoading(true);
     try {
       let imageUrls: string[] = [];
+      let imageThumbnailUrls: string[] | undefined;
       let imageAiScores: Record<string, number> | undefined;
       if (imageFiles.length > 0) {
         setUploading(true);
         const uploaded = await listingsApi.uploadImages(imageFiles);
         imageUrls = uploaded.map((u) => u.url);
+        const thumbs = uploaded.map((u) => (u as any).thumbnailUrl).filter(Boolean);
+        if (thumbs.length > 0) imageThumbnailUrls = thumbs;
         const scores: Record<string, number> = {};
         uploaded.forEach((u) => {
           if (u.aiScore != null) scores[u.url] = u.aiScore;
@@ -248,6 +251,7 @@ export default function CreateListingPage() {
         categoryId,
         condition,
         imageUrls,
+        imageThumbnailUrls,
         imageAiScores,
         location: [selectedNeighbourhood, selectedCity, selectedCountry?.name].filter(Boolean).join(', ') || undefined,
         shippingOption,

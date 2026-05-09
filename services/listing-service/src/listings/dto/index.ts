@@ -73,6 +73,11 @@ export class CreateListingDto {
 
   @IsOptional()
   imageAiScores?: Record<string, number>;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  imageThumbnailUrls?: string[];
 }
 
 export class UpdateListingDto {

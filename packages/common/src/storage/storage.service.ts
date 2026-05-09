@@ -9,6 +9,8 @@ import sharp from 'sharp';
 export interface UploadResult {
   key: string;
   url: string;
+  thumbnailKey?: string;
+  thumbnailUrl?: string;
 }
 
 @Injectable()
@@ -62,6 +64,19 @@ export class StorageService {
     }
   }
 
+  private async generateThumbnail(buffer: Buffer, contentType: string, maxWidth = 400): Promise<Buffer | null> {
+    if (!this.isImageMimeType(contentType)) return null;
+    try {
+      return await sharp(buffer)
+        .resize(maxWidth, undefined, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 75 })
+        .toBuffer();
+    } catch (err) {
+      this.logger.warn(`Failed to generate thumbnail: ${err}`);
+      return null;
+    }
+  }
+
   async upload(
     prefix: string,
     buffer: Buffer,
@@ -69,29 +84,63 @@ export class StorageService {
     contentType: string,
   ): Promise<UploadResult> {
     const ext = extname(originalFilename);
-    const filename = `${randomUUID()}${ext}`;
+    const id = randomUUID();
+    const filename = `${id}${ext}`;
     const key = `${prefix}/${filename}`;
 
     // Strip EXIF metadata (GPS, camera info) from images before storing
     const cleanBuffer = await this.stripExifMetadata(buffer, contentType);
 
+    // Generate thumbnail for images
+    const thumbBuffer = await this.generateThumbnail(cleanBuffer, contentType);
+    const thumbFilename = `${id}_thumb.jpg`;
+    const thumbKey = thumbBuffer ? `${prefix}/${thumbFilename}` : undefined;
+
     if (this.r2Enabled && this.s3Client) {
-      await this.s3Client.send(
-        new PutObjectCommand({
-          Bucket: this.bucketName,
-          Key: key,
-          Body: cleanBuffer,
-          ContentType: contentType,
-        }),
-      );
-      return { key, url: `${this.publicUrl}/${key}` };
+      const uploads: Promise<unknown>[] = [
+        this.s3Client.send(
+          new PutObjectCommand({
+            Bucket: this.bucketName,
+            Key: key,
+            Body: cleanBuffer,
+            ContentType: contentType,
+          }),
+        ),
+      ];
+      if (thumbBuffer && thumbKey) {
+        uploads.push(
+          this.s3Client.send(
+            new PutObjectCommand({
+              Bucket: this.bucketName,
+              Key: thumbKey,
+              Body: thumbBuffer,
+              ContentType: 'image/jpeg',
+            }),
+          ),
+        );
+      }
+      await Promise.all(uploads);
+      return {
+        key,
+        url: `${this.publicUrl}/${key}`,
+        thumbnailKey: thumbKey,
+        thumbnailUrl: thumbKey ? `${this.publicUrl}/${thumbKey}` : undefined,
+      };
     }
 
     // Local fallback
     const dir = join(this.localFallbackDir, prefix);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, filename), cleanBuffer);
-    return { key, url: '' };
+    if (thumbBuffer) {
+      writeFileSync(join(dir, thumbFilename), thumbBuffer);
+    }
+    return {
+      key,
+      url: '',
+      thumbnailKey: thumbKey,
+      thumbnailUrl: thumbKey ? '' : undefined,
+    };
   }
 
   async delete(key: string): Promise<void> {

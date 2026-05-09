@@ -122,6 +122,7 @@ export class TradesController {
     if (!existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return res.sendFile(filePath);
   }
 

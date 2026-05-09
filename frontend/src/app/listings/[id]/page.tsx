@@ -321,7 +321,7 @@ export default function ListingDetailPage() {
           {images.length > 0 && (
             <div>
               <div className="aspect-[4/3] rounded-xl overflow-hidden bg-slate-100 border border-slate-200 mb-2 relative">
-                <img src={getImageUrl(images[activeImage].url)} alt={listing.title} className="w-full h-full object-cover" />
+                <img src={getImageUrl(images[activeImage].url)} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 {images[activeImage]?.aiScore != null && images[activeImage].aiScore! >= 0.75 && (
                   <div className="absolute top-3 left-3 z-10">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-pink-100 text-pink-700 border border-pink-200 shadow-sm">
@@ -338,7 +338,7 @@ export default function ListingDetailPage() {
                   {images.map((img, i) => (
                     <button key={img.id} onClick={() => setActiveImage(i)}
                       className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${i === activeImage ? 'border-navy-900' : 'border-slate-200 hover:border-slate-400'}`}>
-                      <img src={getImageUrl(img.url)} alt="" className="w-full h-full object-cover" />
+                      <img src={getImageUrl(img.url)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>
@@ -795,7 +795,7 @@ export default function ListingDetailPage() {
               <Link key={l.id} href={`/listings/${l.id}`} className="card-hover block overflow-hidden">
                 <div className="aspect-square bg-slate-100">
                   {l.images?.[0]?.url ? (
-                    <img src={getImageUrl(l.images[0].url)} alt={l.title} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(l.images[0].thumbnailUrl || l.images[0].url)} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -823,7 +823,7 @@ export default function ListingDetailPage() {
               <Link key={l.id} href={`/listings/${l.id}`} className="card-hover block overflow-hidden">
                 <div className="aspect-[4/3] bg-slate-100">
                   {l.images?.[0]?.url ? (
-                    <img src={getImageUrl(l.images[0].url)} alt={l.title} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(l.images[0].thumbnailUrl || l.images[0].url)} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">

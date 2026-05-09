@@ -177,6 +177,7 @@ export const listingsApi = {
     maxExchangeValue?: number;
     preferredCategories?: string[];
     imageAiScores?: Record<string, number>;
+    imageThumbnailUrls?: string[];
   }) => api.post<Listing>('/listings', data),
   uploadImages: async (files: File[]): Promise<{ url: string; originalName: string; size: number; aiScore?: number }[]> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;

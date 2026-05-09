@@ -163,7 +163,7 @@ export default function PublicProfilePage() {
               <Link key={l.id} href={`/listings/${l.id}`} className="card-hover block overflow-hidden">
                 <div className="aspect-[4/3] bg-slate-100">
                   {l.images?.[0]?.url ? (
-                    <img src={getImageUrl(l.images[0].url)} alt={l.title} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(l.images[0].thumbnailUrl || l.images[0].url)} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">

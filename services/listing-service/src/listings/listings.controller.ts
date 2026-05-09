@@ -92,6 +92,7 @@ export class ListingsController {
     const legacyPath = join(process.cwd(), 'uploads', safeName);
     const filePath = existsSync(fallbackPath) ? fallbackPath : legacyPath;
     if (!existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return res.sendFile(filePath);
   }
 
@@ -173,8 +174,13 @@ export class ListingsController {
           aiScore = await this.sightEngineService.checkImage(file.buffer, file.originalname);
         }
 
+        const fallbackUrl = `/api/listings/uploads/${result.key.split('/').pop()}`;
+        const thumbFallbackUrl = result.thumbnailKey
+          ? `/api/listings/uploads/${result.thumbnailKey.split('/').pop()}`
+          : undefined;
         return {
-          url: result.url || `/api/listings/uploads/${result.key.split('/').pop()}`,
+          url: result.url || fallbackUrl,
+          thumbnailUrl: result.thumbnailUrl || thumbFallbackUrl,
           originalName: file.originalname,
           size: file.size,
           aiScore,

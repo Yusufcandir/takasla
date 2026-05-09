@@ -89,9 +89,10 @@ export class ListingsService {
       maxExchangeValue?: number;
       preferredCategories?: string[];
       imageAiScores?: Record<string, number>;
+      imageThumbnailUrls?: string[];
     },
   ): Promise<ListingEntity> {
-    const { imageUrls = [], imageAiScores, ...fields } = body;
+    const { imageUrls = [], imageAiScores, imageThumbnailUrls, ...fields } = body;
     const listing = await this.listingRepo.save({
       userId,
       ...fields,
@@ -102,6 +103,7 @@ export class ListingsService {
       const images = imageUrls.map((url, i) => ({
         listingId: listing.id,
         url,
+        thumbnailUrl: imageThumbnailUrls?.[i] ?? undefined,
         sortOrder: i,
         aiScore: imageAiScores?.[url] ?? undefined,
       }));

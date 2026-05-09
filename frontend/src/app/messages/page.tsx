@@ -99,7 +99,7 @@ export default function MessagesPage() {
               >
                 {/* Avatar */}
                 {otherUser?.avatarUrl ? (
-                  <img src={getImageUrl(otherUser.avatarUrl)} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                  <img src={getImageUrl(otherUser.avatarUrl)} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded-full object-cover shrink-0" />
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-navy-900 flex items-center justify-center shrink-0">
                     <span className="text-white text-lg font-bold">

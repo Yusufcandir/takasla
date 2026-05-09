@@ -144,13 +144,13 @@ function ListingsContent() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {filtered.map((listing) => {
-              const thumb = listing.images?.[0]?.url;
+              const thumb = listing.images?.[0]?.thumbnailUrl || listing.images?.[0]?.url;
               return (
               <Link key={listing.id} href={`/listings/${listing.id}`} className={`card-hover block overflow-hidden ${listing.isFeatured && listing.featuredUntil && new Date(listing.featuredUntil) > new Date() ? 'ring-2 ring-amber-200' : ''}`}>
                 {/* Thumbnail */}
                 {thumb ? (
                   <div className="aspect-[4/3] bg-slate-100 overflow-hidden">
-                    <img src={getImageUrl(thumb)} alt={listing.title} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(thumb)} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className="aspect-[4/3] bg-slate-100 flex items-center justify-center">

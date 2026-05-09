@@ -129,7 +129,7 @@ export default function ChatPage() {
         </Link>
 
         {otherProfile?.avatarUrl ? (
-          <img src={getImageUrl(otherProfile.avatarUrl)} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+          <img src={getImageUrl(otherProfile.avatarUrl)} alt="" loading="lazy" decoding="async" className="w-10 h-10 rounded-full object-cover shrink-0" />
         ) : (
           <div className="w-10 h-10 rounded-full bg-navy-900 flex items-center justify-center shrink-0">
             <span className="text-white text-sm font-bold">

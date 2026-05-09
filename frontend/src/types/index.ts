@@ -10,6 +10,7 @@ export interface Category {
 export interface ListingImage {
   id: string;
   url: string;
+  thumbnailUrl?: string;
   sortOrder: number;
   listingId: string;
   aiScore?: number;

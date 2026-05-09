@@ -101,6 +101,8 @@ function CreateOfferContent() {
               <img
                 src={getImageUrl(targetListing.images[0].url)}
                 alt={targetListing.title}
+                loading="lazy"
+                decoding="async"
                 className="w-14 h-14 rounded-lg object-cover shrink-0 border border-slate-200"
               />
             )}
@@ -156,6 +158,8 @@ function CreateOfferContent() {
                       <img
                         src={getImageUrl(l.images[0].url)}
                         alt={l.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-200"
                       />
                     ) : (

@@ -16,6 +16,9 @@ export class ListingImageEntity {
   @Column({ length: 500 })
   url!: string;
 
+  @Column({ name: 'thumbnail_url', length: 500, nullable: true })
+  thumbnailUrl?: string;
+
   @Column({ name: 'sort_order', default: 0 })
   sortOrder!: number;
 
