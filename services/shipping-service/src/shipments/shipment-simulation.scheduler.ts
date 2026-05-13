@@ -8,7 +8,7 @@ export class ShipmentSimulationScheduler {
 
   constructor(private readonly shipmentsService: ShipmentsService) {}
 
-  @Cron('*/30 * * * * *')
+  @Cron('*/10 * * * * *')
   async autoDeliverSimulatedShipments() {
     const shipments = await this.shipmentsService.findPendingSimulatedShipments();
     if (shipments.length === 0) return;
