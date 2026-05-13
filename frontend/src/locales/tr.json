@@ -366,6 +366,7 @@
   "trade_detail.print_label": "Etiket Yazdır",
   "trade_detail.simulate_transit": "Simülasyon: Yolda Olarak İşaretle",
   "trade_detail.simulate_next": "Simülasyon: Sonraki Durum",
+  "trade_detail.simulate_deliver": "Simülasyon: Teslimatı Tamamla",
   "trade_detail.event_log": "Olay Geçmişi",
   "trade_detail.no_events": "Henüz olay kaydedilmedi.",
   "trade_detail.actions": "İşlemler",

@@ -925,7 +925,7 @@ export default function TradeDetailPage() {
                                     })}
                                     className="btn-secondary btn-sm w-full"
                                   >
-                                    {t('trade_detail.simulate_transit')}
+                                    {t('trade_detail.simulate_deliver')}
                                   </button>
                                 )}
                               </div>
@@ -943,7 +943,7 @@ export default function TradeDetailPage() {
                                   })}
                                   className="btn-secondary btn-sm w-full"
                                 >
-                                  {t('trade_detail.simulate_next')}
+                                  {t('trade_detail.simulate_deliver')}
                                 </button>
                               </div>
                             )}

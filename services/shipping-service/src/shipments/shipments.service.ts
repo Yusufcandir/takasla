@@ -624,16 +624,18 @@ export class ShipmentsService implements OnModuleInit {
       throw new BadRequestException(`Cannot advance from status ${shipment.status}`);
     }
 
-    const nextStatus = statusProgression[currentIndex + 1];
-
     const messages: Record<string, string> = {
       [ShipmentStatus.IN_TRANSIT]: 'Package picked up by carrier',
       [ShipmentStatus.OUT_FOR_DELIVERY]: 'Package out for delivery',
       [ShipmentStatus.DELIVERED]: 'Package delivered successfully',
     };
 
-    await this.updateShipmentStatus(shipment, nextStatus);
-    await this.createEvent(shipment.id, nextStatus, messages[nextStatus] || `Status: ${nextStatus}`);
+    // Advance through all remaining steps to DELIVERED in one go
+    for (let i = currentIndex + 1; i < statusProgression.length; i++) {
+      const nextStatus = statusProgression[i];
+      await this.updateShipmentStatus(shipment, nextStatus);
+      await this.createEvent(shipment.id, nextStatus, messages[nextStatus] || `Status: ${nextStatus}`);
+    }
 
     return this.shipmentRepo.findOneBy({ id: shipmentId }) as Promise<ShipmentEntity>;
   }

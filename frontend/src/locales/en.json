@@ -366,6 +366,7 @@
   "trade_detail.print_label": "Print Label",
   "trade_detail.simulate_transit": "Simulate: Mark In Transit",
   "trade_detail.simulate_next": "Simulate: Next Status",
+  "trade_detail.simulate_deliver": "Simulate: Complete Delivery",
   "trade_detail.event_log": "Event Log",
   "trade_detail.no_events": "No events recorded yet.",
   "trade_detail.actions": "Actions",
