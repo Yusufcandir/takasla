@@ -19,6 +19,7 @@ export class PaymentsService implements OnModuleInit {
   private readonly feePercentage: number;
   private readonly frontendUrl: string;
   private readonly gatewayUrl: string;
+  private readonly publicApiUrl: string;
 
   constructor(
     @InjectRepository(PaymentEntity)
@@ -32,6 +33,7 @@ export class PaymentsService implements OnModuleInit {
     this.feePercentage = parseFloat(this.config.get<string>('PLATFORM_FEE_PERCENTAGE', '0.025'));
     this.frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:4000');
     this.gatewayUrl = this.config.get<string>('GATEWAY_URL', 'http://api-gateway:3000');
+    this.publicApiUrl = this.config.get<string>('PUBLIC_API_URL', this.gatewayUrl);
   }
 
   async onModuleInit() {
@@ -301,8 +303,8 @@ export class PaymentsService implements OnModuleInit {
       throw new ForbiddenException('Payment already completed');
     }
 
-    // iyzico callback URL — the backend endpoint that iyzico will redirect to after payment
-    const callbackUrl = `${this.gatewayUrl}/payments/iyzico/callback`;
+    // iyzico callback URL — must be publicly reachable since iyzico redirects the user's browser here
+    const callbackUrl = `${this.publicApiUrl}/payments/iyzico/callback`;
 
     const { token, paymentPageUrl } = await this.iyzicoService.createCheckoutForm(payment, callbackUrl);
 

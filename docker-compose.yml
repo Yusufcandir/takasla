@@ -584,8 +584,9 @@ services:
       - IYZICO_SECRET_KEY=${IYZICO_SECRET_KEY:-}
       - IYZICO_BASE_URL=${IYZICO_BASE_URL:-https://sandbox-api.iyzipay.com}
       - PLATFORM_FEE_PERCENTAGE=${PLATFORM_FEE_PERCENTAGE:-0.025}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:4000}
       - GATEWAY_URL=http://api-gateway:3000
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-http://localhost:3000}
       - LISTING_SERVICE_URL=http://listing-service:3003
       - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
       - DB_LOGGING=${DB_LOGGING:-false}
