@@ -953,7 +953,18 @@ export class TradesService implements OnModuleInit {
 
   private async handleDirectShipmentDelivered(tradeId: string): Promise<void> {
     const trade = await this.tradeRepo.findOne({ where: { id: tradeId } });
-    if (!trade || trade.state !== TradeState.IN_TRANSIT) return;
+    if (!trade) return;
+
+    // Handle race condition: delivered event may arrive before in_transit is committed
+    if (trade.state === TradeState.VERIFIED || trade.state === TradeState.AWAITING_SHIPMENT) {
+      const transitResult = this.stateMachine.transition(trade, 'direct_shipping_ready', 'system');
+      if (transitResult.success) {
+        trade.state = transitResult.newState!;
+        this.logger.log(`Trade ${tradeId}: fast-forward ${transitResult.fromState} → IN_TRANSIT`);
+      }
+    }
+
+    if (trade.state !== TradeState.IN_TRANSIT) return;
 
     const result = this.stateMachine.transition(trade, 'all_shipments_delivered', 'system');
     if (!result.success) return;
@@ -1153,7 +1164,18 @@ export class TradesService implements OnModuleInit {
 
   private async handleLeg2Delivered(tradeId: string): Promise<void> {
     const trade = await this.tradeRepo.findOne({ where: { id: tradeId } });
-    if (!trade || trade.state !== TradeState.SHIPPING_TO_RECIPIENTS) return;
+    if (!trade) return;
+
+    // Handle race condition: if delivered event arrives before in_transit is committed,
+    // step through both transitions (CENTER_VERIFIED → SHIPPING_TO_RECIPIENTS → DELIVERED)
+    if (trade.state === TradeState.CENTER_VERIFIED) {
+      const transitResult = this.stateMachine.transition(trade, 'all_shipments_in_transit', 'system');
+      if (!transitResult.success) return;
+      trade.state = transitResult.newState!;
+      this.logger.log(`Trade ${tradeId}: fast-forward CENTER_VERIFIED → SHIPPING_TO_RECIPIENTS`);
+    }
+
+    if (trade.state !== TradeState.SHIPPING_TO_RECIPIENTS) return;
 
     const result = this.stateMachine.transition(trade, 'all_shipments_delivered', 'system');
     if (!result.success) return;
@@ -1166,7 +1188,7 @@ export class TradesService implements OnModuleInit {
       await manager.save(TradeEventEntity, {
         tradeId,
         eventType: 'trade.delivered',
-        fromState: result.fromState,
+        fromState: TradeState.CENTER_VERIFIED,
         toState: result.newState,
         payload: { disputeWindowEnd: trade.disputeWindowEnd?.toISOString() },
       });
