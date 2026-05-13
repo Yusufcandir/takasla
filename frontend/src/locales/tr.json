@@ -175,6 +175,7 @@
   "listing_detail.spotlight_active": "Vitrin Aktif",
   "listing_detail.featured_active": "Öne Çıkan Aktif",
   "listing_detail.until": "{{date}} tarihine kadar",
+  "listing_detail.edit_listing": "İlanı Düzenle",
   "listing_detail.delete_listing": "İlanı Sil",
   "listing_detail.delete_confirm": "Emin misiniz? Bu işlem geri alınamaz.",
   "listing_detail.delete_yes": "Evet, Sil",
@@ -308,6 +309,14 @@
   "create_listing.submit": "İlan Oluştur",
   "create_listing.error_country": "Lütfen bir ülke seçin",
   "create_listing.error_city": "Lütfen bir şehir seçin",
+
+  "edit_listing.title": "İlanı Düzenle",
+  "edit_listing.subtitle": "İlan bilgilerinizi güncelleyin",
+  "edit_listing.back": "İlana dön",
+  "edit_listing.save": "Değişiklikleri Kaydet",
+  "edit_listing.saving": "Kaydediliyor...",
+  "edit_listing.load_error": "İlan yüklenemedi",
+  "edit_listing.update_error": "İlan güncellenemedi",
 
   "trades.title": "Takaslarım",
   "trades.subtitle": "Toplam {{count}} takas",

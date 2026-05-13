@@ -239,12 +239,31 @@ export class ListingsService {
     this.logger.log(`Listing ${listingId} boosted: tier=${tier}, until=${listing.featuredUntil.toISOString()}`);
   }
 
-  async update(id: string, userId: string, updates: Partial<ListingEntity>): Promise<ListingEntity> {
+  async update(id: string, userId: string, updates: Record<string, any>): Promise<ListingEntity> {
     const listing = await this.findById(id);
     if (listing.userId !== userId) throw new ForbiddenException('Not your listing');
     if (listing.status !== ListingStatus.ACTIVE) throw new ForbiddenException('Cannot update a non-active listing');
-    Object.assign(listing, updates);
-    return this.listingRepo.save(listing);
+
+    const { imageUrls, imageAiScores, imageThumbnailUrls, ...fields } = updates;
+    Object.assign(listing, fields);
+    await this.listingRepo.save(listing);
+
+    // Replace images if imageUrls is provided
+    if (imageUrls !== undefined) {
+      await this.imageRepo.delete({ listingId: id });
+      if (imageUrls.length > 0) {
+        const images = imageUrls.map((url: string, i: number) => ({
+          listingId: id,
+          url,
+          thumbnailUrl: imageThumbnailUrls?.[i] ?? undefined,
+          sortOrder: i,
+          aiScore: imageAiScores?.[url] ?? undefined,
+        }));
+        await this.imageRepo.save(images);
+      }
+    }
+
+    return this.findById(id);
   }
 
   async archive(id: string, userId: string): Promise<void> {

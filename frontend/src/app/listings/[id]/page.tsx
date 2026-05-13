@@ -596,6 +596,14 @@ export default function ListingDetailPage() {
                 </div>
                 <p className="text-sm text-slate-500 mb-4">{t('listing_detail.your_listing_desc')}</p>
                 <Link href="/offers" className="btn-secondary w-full text-center block mb-2">{t('listing_detail.view_offers')}</Link>
+                {listing.status === 'active' && (
+                  <Link href={`/listings/${listing.id}/edit`} className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors mb-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    {t('listing_detail.edit_listing')}
+                  </Link>
+                )}
 
                 {/* Boost Section */}
                 {listing.status === 'active' && (

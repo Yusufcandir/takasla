@@ -175,6 +175,7 @@
   "listing_detail.spotlight_active": "Spotlight Active",
   "listing_detail.featured_active": "Featured Active",
   "listing_detail.until": "Until {{date}}",
+  "listing_detail.edit_listing": "Edit Listing",
   "listing_detail.delete_listing": "Delete Listing",
   "listing_detail.delete_confirm": "Are you sure? This cannot be undone.",
   "listing_detail.delete_yes": "Yes, Delete",
@@ -308,6 +309,14 @@
   "create_listing.submit": "Create Listing",
   "create_listing.error_country": "Please select a country",
   "create_listing.error_city": "Please select a city",
+
+  "edit_listing.title": "Edit Listing",
+  "edit_listing.subtitle": "Update your listing details",
+  "edit_listing.back": "Back to listing",
+  "edit_listing.save": "Save Changes",
+  "edit_listing.saving": "Saving...",
+  "edit_listing.load_error": "Failed to load listing",
+  "edit_listing.update_error": "Failed to update listing",
 
   "trades.title": "My Trades",
   "trades.subtitle": "{{count}} total trades",
