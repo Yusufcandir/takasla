@@ -9,3 +9,4 @@ import { TrustService } from './trust.service';
   exports: [TrustService],
 })
 export class TrustModule {}
+

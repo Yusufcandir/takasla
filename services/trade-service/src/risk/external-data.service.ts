@@ -47,10 +47,10 @@ export class ExternalDataService {
       const { data } = await firstValueFrom(
         this.http.get(`${userUrl}/profiles/${userId}/trust`),
       );
-      return parseFloat(data.score ?? '50');
+      return parseFloat(data.score ?? '0');
     } catch (err) {
-      this.logger.warn(`Could not fetch trust score for ${userId}, defaulting to 50: ${err}`);
-      return 50;
+      this.logger.warn(`Could not fetch trust score for ${userId}, defaulting to 0: ${err}`);
+      return 0;
     }
   }
 

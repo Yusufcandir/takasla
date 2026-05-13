@@ -24,7 +24,7 @@ export class TrustScoreService {
   async recalculate(userId: string): Promise<number> {
     const ratings = await this.ratingRepo.find({ where: { ratedUserId: userId } });
 
-    if (ratings.length === 0) return 50;
+    if (ratings.length === 0) return 0;
 
     const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
 
@@ -40,22 +40,22 @@ export class TrustScoreService {
     }
 
     const avgRating = totalWeight > 0 ? weightedSum / totalWeight : 2.5;
-    const ratingScore = (avgRating / 5) * 35;
-    const volumeBonus = Math.min(ratings.length / 20, 1) * 15;
-    const consistencyScore = this.calculateConsistency(ratings) * 15;
+    // Rating is the dominant factor — maps directly to 0-100 scale
+    const ratingScore = (avgRating / 5) * 90;
+    // Small bonus for trade volume (max 10 points at 10+ trades)
+    const volumeBonus = Math.min(ratings.length / 10, 1) * 10;
     const whitewashPenalty = this.detectWhitewashing(ratings) * 20;
 
     // Dispute factor: fetch dispute count and penalize
     const disputePenalty = await this.calculateDisputePenalty(userId);
 
     const totalScore = Math.min(100, Math.max(0,
-      20 + ratingScore + volumeBonus + consistencyScore - whitewashPenalty - disputePenalty,
+      ratingScore + volumeBonus - whitewashPenalty - disputePenalty,
     ));
 
     const components = {
       ratingScore: parseFloat(ratingScore.toFixed(2)),
       volumeBonus: parseFloat(volumeBonus.toFixed(2)),
-      consistencyScore: parseFloat(consistencyScore.toFixed(2)),
       whitewashPenalty: parseFloat(whitewashPenalty.toFixed(2)),
       disputePenalty: parseFloat(disputePenalty.toFixed(2)),
     };
@@ -74,7 +74,7 @@ export class TrustScoreService {
       correlationId: uuidv4(),
       idempotencyKey: `trust:${userId}:${Date.now()}`,
       userId,
-      previousScore: previousSnapshot?.score || 50,
+      previousScore: previousSnapshot?.score ?? 0,
       newScore: score,
     });
 

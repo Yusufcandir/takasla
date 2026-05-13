@@ -41,7 +41,7 @@ function TrustScoreWidget({ score }: { score: number }) {
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-sm font-bold ${colorClass}`}>{clamped.toFixed(0)}</span>
+          <span className={`text-xs font-bold ${colorClass}`}>{clamped.toFixed(0)}%</span>
         </div>
       </div>
       <div>

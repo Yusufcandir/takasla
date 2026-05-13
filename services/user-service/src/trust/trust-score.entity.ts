@@ -8,7 +8,7 @@ export class TrustScoreEntity {
   @Column({ name: 'user_id', type: 'uuid', unique: true })
   userId!: string;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 50.00 })
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
   score!: number;
 
   @Column({ type: 'jsonb', nullable: true })

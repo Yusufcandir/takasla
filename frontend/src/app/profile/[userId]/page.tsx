@@ -22,7 +22,7 @@ function TrustRing({ score }: { score: number }) {
         <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={TRUST_BG[k]} strokeWidth="3" strokeDasharray={`${clamped}, 100`} strokeLinecap="round" />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className={`text-lg font-bold ${TRUST_COLOR[k]}`}>{clamped.toFixed(0)}</span>
+        <span className={`text-sm font-bold ${TRUST_COLOR[k]}`}>{clamped.toFixed(0)}%</span>
       </div>
     </div>
   );
