@@ -17,9 +17,9 @@ interface ProofEntry {
   description: string;
 }
 
-// Timeline steps — consolidated from 12 to 9 for readability
-// Each step maps to one or more actual trade states
-const TIMELINE_STEPS = [
+// Timeline steps — risk-level-dependent
+// HIGH risk: center-based verification flow
+const TIMELINE_STEPS_CENTER = [
   { key: 'ACCEPTED', states: ['ACCEPTED'] },
   { key: 'LOCKED', states: ['LOCKED'] },
   { key: 'PROOF_SUBMITTED', states: ['PROOF_SUBMITTED', 'UNDER_VERIFICATION'] },
@@ -31,8 +31,24 @@ const TIMELINE_STEPS = [
   { key: 'COMPLETED', states: ['COMPLETED'] },
 ] as const;
 
-// Flat list for index-based lookups
-const TRADE_STATES: Trade['state'][] = TIMELINE_STEPS.flatMap(s => s.states as unknown as Trade['state'][]);
+// LOW/MEDIUM risk: direct shipping flow
+const TIMELINE_STEPS_DIRECT = [
+  { key: 'ACCEPTED', states: ['ACCEPTED'] },
+  { key: 'LOCKED', states: ['LOCKED'] },
+  { key: 'PROOF_SUBMITTED', states: ['PROOF_SUBMITTED', 'UNDER_VERIFICATION'] },
+  { key: 'VERIFIED', states: ['VERIFIED'] },
+  { key: 'IN_TRANSIT', states: ['IN_TRANSIT'] },
+  { key: 'DELIVERED', states: ['DELIVERED'] },
+  { key: 'COMPLETED', states: ['COMPLETED'] },
+] as const;
+
+function getTimelineSteps(riskLevel?: string) {
+  return riskLevel === 'HIGH' ? TIMELINE_STEPS_CENTER : TIMELINE_STEPS_DIRECT;
+}
+
+// Flat list for index-based lookups (union of all possible states)
+const ALL_TIMELINE_STATES = [...TIMELINE_STEPS_CENTER, ...TIMELINE_STEPS_DIRECT];
+const TRADE_STATES: Trade['state'][] = [...new Set(ALL_TIMELINE_STATES.flatMap(s => s.states as unknown as Trade['state'][]))];
 
 const STATE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   INITIATED: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
@@ -330,7 +346,8 @@ export default function TradeDetailPage() {
     );
   }
 
-  const currentStepIndex = TIMELINE_STEPS.findIndex(s => (s.states as readonly string[]).includes(trade.state));
+  const timelineSteps = getTimelineSteps(trade.riskLevel);
+  const currentStepIndex = timelineSteps.findIndex(s => (s.states as readonly string[]).includes(trade.state));
   const currentIndex = currentStepIndex; // for timeline display
   const isBranchState = ['DISPUTE_OPEN', 'CANCELLED', 'REVOKED'].includes(trade.state);
   const isTerminal = ['COMPLETED', 'CANCELLED', 'REVOKED'].includes(trade.state);
@@ -375,8 +392,8 @@ export default function TradeDetailPage() {
 
       {/* ========== STATE TIMELINE ========== */}
       <div className="card p-5 mb-8 overflow-x-auto">
-        <div className="flex items-center" style={{ minWidth: `${TIMELINE_STEPS.length * 80}px` }}>
-          {TIMELINE_STEPS.map((step, i) => {
+        <div className="flex items-center" style={{ minWidth: `${timelineSteps.length * 80}px` }}>
+          {timelineSteps.map((step, i) => {
             const isStepActive = (step.states as readonly string[]).includes(trade.state);
             const isPast = !isBranchState && i < currentIndex;
             const isCurrent = isStepActive;
@@ -411,7 +428,7 @@ export default function TradeDetailPage() {
                 </div>
 
                 {/* Connector line */}
-                {i < TIMELINE_STEPS.length - 1 && (
+                {i < timelineSteps.length - 1 && (
                   <div className={`flex-1 h-0.5 mx-0.5 sm:mx-1 mt-[-16px] rounded min-w-[8px] ${
                     isPastOrCurrent && i < currentIndex ? 'bg-emerald-500' : 'bg-slate-200'
                   }`} />
@@ -538,8 +555,8 @@ export default function TradeDetailPage() {
               </div>
               <div className="p-5 space-y-5">
 
-                {/* Center Selection — show if user hasn't selected a center yet */}
-                {trade.state === 'VERIFIED' && trade.shippingMethod === 'shipping' && !(currentUserId === trade.partyAId ? trade.centerAId : trade.centerBId) && (
+                {/* Center Selection — only for HIGH risk trades */}
+                {trade.state === 'VERIFIED' && trade.shippingMethod === 'shipping' && trade.riskLevel === 'HIGH' && !(currentUserId === trade.partyAId ? trade.centerAId : trade.centerBId) && (
                   <div>
                     <h3 className="text-sm font-medium text-slate-700 mb-1">{t('trade_detail.select_center_title')}</h3>
                     <p className="text-xs text-slate-500 mb-3">{t('trade_detail.select_center_desc')}</p>

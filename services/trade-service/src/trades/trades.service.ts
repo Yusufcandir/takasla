@@ -126,10 +126,16 @@ export class TradesService implements OnModuleInit {
         this.logger.log(`Received shipping event: ${routingKey} for trade ${tradeId} (leg=${leg || 'unknown'})`);
 
         if (allLabelsReady && routingKey?.includes('label')) {
-          await this.handleShippingReady(tradeId);
+          if (leg === 'direct') {
+            await this.handleDirectShippingReady(tradeId);
+          } else {
+            await this.handleShippingReady(tradeId);
+          }
         } else if (routingKey?.includes('in_transit')) {
           if (leg === 'to_recipient') {
             await this.handleLeg2InTransit(tradeId);
+          } else if (leg === 'direct') {
+            this.logger.log(`Direct shipping in transit for trade ${tradeId}`);
           } else {
             // Leg 1 in-transit: no state change needed, just log
             this.logger.log(`Leg 1 in transit for trade ${tradeId}`);
@@ -137,6 +143,8 @@ export class TradesService implements OnModuleInit {
         } else if (routingKey?.includes('delivered')) {
           if (leg === 'to_recipient') {
             await this.handleLeg2Delivered(tradeId);
+          } else if (leg === 'direct') {
+            await this.handleDirectShipmentDelivered(tradeId);
           }
           // Leg 1 delivered is handled via center.item_received event
         }
@@ -590,6 +598,9 @@ export class TradesService implements OnModuleInit {
     if (trade.state !== TradeState.VERIFIED) {
       throw new ForbiddenException('Center can only be selected in VERIFIED state');
     }
+    if (trade.riskLevel !== RiskLevel.HIGH) {
+      throw new ForbiddenException('Center selection is only available for high-risk trades');
+    }
 
     const center = await this.centerRepo.findOne({ where: { id: centerId, isActive: true } });
     if (!center) {
@@ -666,9 +677,9 @@ export class TradesService implements OnModuleInit {
       !trade.partyAAddress || !trade.partyBAddress
     ) return;
 
-    // For shipping trades, both centers must be selected
-    if (trade.shippingMethod === 'shipping' && (!trade.centerAId || !trade.centerBId)) {
-      this.logger.log(`Waiting for both centers to be selected for trade ${trade.id}`);
+    // For HIGH risk shipping trades, both centers must be selected
+    if (trade.shippingMethod === 'shipping' && trade.riskLevel === RiskLevel.HIGH && (!trade.centerAId || !trade.centerBId)) {
+      this.logger.log(`Waiting for both centers to be selected for HIGH-risk trade ${trade.id}`);
       return;
     }
 
@@ -842,18 +853,24 @@ export class TradesService implements OnModuleInit {
 
     this.logger.log(`Payment recorded for trade ${tradeId}: A=${updated.partyAPaid}, B=${updated.partyBPaid}`);
 
-    // Check if all prerequisites are met to advance to SHIPPING_TO_CENTER
+    // Check if all prerequisites are met to advance shipping
     if (
       updated.state === TradeState.VERIFIED &&
       updated.partyAPaid &&
       updated.partyBPaid &&
-      updated.shippingMethod === 'shipping' &&
-      updated.partyAAddressSubmitted &&
-      updated.partyBAddressSubmitted &&
-      updated.centerAId &&
-      updated.centerBId
+      updated.shippingMethod === 'shipping'
     ) {
-      await this.handleShippingReady(tradeId);
+      if (updated.riskLevel === RiskLevel.HIGH) {
+        // HIGH risk: center flow — need addresses + centers
+        if (updated.partyAAddressSubmitted && updated.partyBAddressSubmitted && updated.centerAId && updated.centerBId) {
+          await this.handleShippingReady(tradeId);
+        }
+      } else {
+        // LOW/MEDIUM risk: direct shipping — need addresses only
+        if (updated.partyAAddressSubmitted && updated.partyBAddressSubmitted) {
+          await this.handleDirectShippingReady(tradeId);
+        }
+      }
     }
 
     // Check if local pickup trade is ready to complete (both confirmed + both paid)
@@ -909,6 +926,52 @@ export class TradesService implements OnModuleInit {
         this.logger.log(`Created CenterVerification for trade ${tradeId}, party B, center ${trade.centerBId}`);
       }
     });
+  }
+
+  // --- Direct shipping handlers (LOW/MEDIUM risk) ---
+
+  private async handleDirectShippingReady(tradeId: string): Promise<void> {
+    const trade = await this.tradeRepo.findOne({ where: { id: tradeId } });
+    if (!trade || trade.state !== TradeState.VERIFIED) return;
+
+    const result = this.stateMachine.transition(trade, 'direct_shipping_ready', 'system');
+    if (!result.success) return;
+
+    await this.dataSource.transaction(async (manager) => {
+      trade.state = result.newState!;
+      await manager.save(trade);
+      await manager.save(TradeEventEntity, {
+        tradeId,
+        eventType: 'trade.direct_shipping',
+        fromState: result.fromState,
+        toState: result.newState,
+        payload: {},
+      });
+    });
+    this.logger.log(`Trade ${tradeId} → IN_TRANSIT (direct shipping)`);
+  }
+
+  private async handleDirectShipmentDelivered(tradeId: string): Promise<void> {
+    const trade = await this.tradeRepo.findOne({ where: { id: tradeId } });
+    if (!trade || trade.state !== TradeState.IN_TRANSIT) return;
+
+    const result = this.stateMachine.transition(trade, 'all_shipments_delivered', 'system');
+    if (!result.success) return;
+
+    await this.dataSource.transaction(async (manager) => {
+      trade.state = result.newState!;
+      trade.disputeWindowEnd = this.timeWindow.calculateDisputeWindowEnd(trade.riskLevel);
+      trade.timeoutAt = trade.disputeWindowEnd;
+      await manager.save(trade);
+      await manager.save(TradeEventEntity, {
+        tradeId,
+        eventType: 'trade.delivered',
+        fromState: result.fromState,
+        toState: result.newState,
+        payload: { disputeWindowEnd: trade.disputeWindowEnd?.toISOString() },
+      });
+    });
+    this.logger.log(`Trade ${tradeId} → DELIVERED (direct shipping)`);
   }
 
   // --- Center verification handlers ---

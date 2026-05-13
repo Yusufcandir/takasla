@@ -109,15 +109,28 @@ export const TRANSITIONS: TransitionDefinition[] = [
     guardFailReason: 'Cannot cancel after both parties have paid — open a dispute instead',
     sideEffects: ['release_locks'],
   },
-  // --- Shipping flow (center-based verification) ---
+  // --- Direct shipping (LOW/MEDIUM risk — no center) ---
+  {
+    from: TradeState.VERIFIED,
+    event: 'direct_shipping_ready',
+    to: TradeState.IN_TRANSIT,
+    guard: (trade: TradeEntity) =>
+      trade.shippingMethod === 'shipping' &&
+      trade.riskLevel !== RiskLevel.HIGH &&
+      trade.partyAPaid && trade.partyBPaid,
+    guardFailReason: 'Shipping method must be set and both parties must have paid',
+    sideEffects: ['notify_direct_shipping'],
+  },
+  // --- Center-based shipping (HIGH risk only) ---
   {
     from: TradeState.VERIFIED,
     event: 'shipping_ready',
     to: TradeState.SHIPPING_TO_CENTER,
     guard: (trade: TradeEntity) =>
       trade.shippingMethod === 'shipping' &&
+      trade.riskLevel === RiskLevel.HIGH &&
       trade.partyAPaid && trade.partyBPaid,
-    guardFailReason: 'Shipping method must be set and both parties must have paid',
+    guardFailReason: 'Center-based shipping is only for high-risk trades',
     sideEffects: ['notify_shipping_to_center'],
   },
   {
@@ -202,6 +215,25 @@ export const TRANSITIONS: TransitionDefinition[] = [
     event: 'all_shipments_delivered',
     to: TradeState.DELIVERED,
     sideEffects: ['set_dispute_window'],
+  },
+  // --- Direct shipping delivery (LOW/MEDIUM risk) ---
+  {
+    from: TradeState.IN_TRANSIT,
+    event: 'all_shipments_delivered',
+    to: TradeState.DELIVERED,
+    sideEffects: ['set_dispute_window'],
+  },
+  {
+    from: TradeState.IN_TRANSIT,
+    event: 'dispute_opened',
+    to: TradeState.DISPUTE_OPEN,
+    sideEffects: ['notify_dispute_service'],
+  },
+  {
+    from: TradeState.IN_TRANSIT,
+    event: 'cancel',
+    to: TradeState.CANCELLED,
+    sideEffects: ['release_locks', 'cancel_shipments'],
   },
   {
     from: TradeState.SHIPPING_TO_RECIPIENTS,
