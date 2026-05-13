@@ -1,12 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProfileEntity } from './profile.entity';
 import { RabbitMQService } from '@exchange/common';
-import { ROUTING_KEYS } from '@exchange/shared-types';
+import { ROUTING_KEYS, QUEUES } from '@exchange/shared-types';
 
 @Injectable()
 export class ProfilesService {
+  private readonly logger = new Logger(ProfilesService.name);
+
   constructor(
     @InjectRepository(ProfileEntity)
     private readonly profileRepo: Repository<ProfileEntity>,
@@ -19,6 +21,26 @@ export class ProfilesService {
       [ROUTING_KEYS.AUTH.USER_REGISTERED],
       async (msg: any) => {
         await this.createFromRegistration(msg.userId, msg.displayName, msg.email);
+      },
+    );
+
+    await this.rabbitMQService.subscribe(
+      QUEUES.USER_ON_TRADE,
+      [ROUTING_KEYS.TRADE.INITIATED, ROUTING_KEYS.TRADE.COMPLETED],
+      async (msg: Record<string, unknown>, routingKey: string) => {
+        const partyAId = msg.partyAId as string;
+        const partyBId = msg.partyBId as string;
+        if (!partyAId || !partyBId) return;
+
+        if (routingKey === ROUTING_KEYS.TRADE.INITIATED) {
+          this.logger.log(`Trade initiated — incrementing totalTrades for ${partyAId} and ${partyBId}`);
+          await this.incrementTrades(partyAId, false).catch(() => {});
+          await this.incrementTrades(partyBId, false).catch(() => {});
+        } else if (routingKey === ROUTING_KEYS.TRADE.COMPLETED) {
+          this.logger.log(`Trade completed — incrementing completedTrades for ${partyAId} and ${partyBId}`);
+          await this.incrementCompletedTrades(partyAId).catch(() => {});
+          await this.incrementCompletedTrades(partyBId).catch(() => {});
+        }
       },
     );
   }
@@ -50,6 +72,12 @@ export class ProfilesService {
     const profile = await this.findByUserId(userId);
     profile.totalTrades += 1;
     if (completed) profile.completedTrades += 1;
+    await this.profileRepo.save(profile);
+  }
+
+  async incrementCompletedTrades(userId: string): Promise<void> {
+    const profile = await this.findByUserId(userId);
+    profile.completedTrades += 1;
     await this.profileRepo.save(profile);
   }
 }

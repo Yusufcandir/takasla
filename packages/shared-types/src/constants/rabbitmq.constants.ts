@@ -87,6 +87,7 @@ export const QUEUES = {
   SHIPPING_ON_CENTER: 'shipping.on-center-events',
   AUTH_ON_MODERATION: 'auth.on-moderation-events',
   USER_ON_REPUTATION: 'user.on-reputation-events',
+  USER_ON_TRADE: 'user.on-trade-events',
   USER_CLEANUP: 'user.on-user-deleted',
   LISTING_CLEANUP: 'listing.on-user-deleted',
   OFFER_CLEANUP: 'offer.on-user-deleted',
