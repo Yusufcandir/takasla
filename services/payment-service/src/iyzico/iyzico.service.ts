@@ -141,7 +141,7 @@ export class IyzicoService {
     }
 
     return new Promise((resolve, reject) => {
-      this.iyzipay!.checkoutForm.retrieve(
+      this.iyzipay!.checkoutFormAuth.retrieve(
         { locale: Iyzipay.LOCALE.TR, token },
         (err: Error | null, result: Record<string, unknown>) => {
           if (err) {
