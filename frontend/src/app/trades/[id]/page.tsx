@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { tradesApi, certificatesApi, shippingApi, addressApi, paymentsApi, centersApi, getImageUrl } from '@/lib/api';
+import { tradesApi, certificatesApi, shippingApi, addressApi, paymentsApi, centersApi, ratingsApi, getImageUrl } from '@/lib/api';
 import { getUserId, isModeratorOrAdmin } from '@/lib/auth';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/contexts/LanguageContext';
-import type { Trade, TradeEvent, Certificate, Shipment, ShippingRate, ShippingAddress, SavedAddress, Payment, VerificationCenter, CenterVerification } from '@/types';
+import type { Trade, TradeEvent, Certificate, Shipment, ShippingRate, ShippingAddress, SavedAddress, Payment, VerificationCenter, CenterVerification, Rating } from '@/types';
 import AddressForm, { validateAddress } from '@/components/AddressForm';
 
 interface ProofEntry {
@@ -135,6 +135,13 @@ export default function TradeDetailPage() {
   const [selectedCenterId, setSelectedCenterId] = useState('');
   const [centerLoading, setCenterLoading] = useState(false);
 
+  // Rating state
+  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [ratingScore, setRatingScore] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+
   const loadTrade = useCallback(() => {
     if (!tradeId) return;
     Promise.all([
@@ -179,6 +186,13 @@ export default function TradeDetailPage() {
       centersApi.list().then(setCenters).catch(() => {});
     }
   }, [trade?.state, trade?.shippingMethod]);
+
+  // Load ratings when trade is completed
+  useEffect(() => {
+    if (trade?.state === 'COMPLETED') {
+      ratingsApi.getByTrade(tradeId).then(setRatings).catch(() => {});
+    }
+  }, [trade?.state, tradeId]);
 
   useEffect(() => {
     if (!tradeId) return;
@@ -1389,7 +1403,100 @@ export default function TradeDetailPage() {
                 </button>
               )}
 
-              {isTerminal && (
+              {trade.state === 'COMPLETED' && (() => {
+                const counterpartyId = currentUserId === trade.partyAId ? trade.partyBId : trade.partyAId;
+                const myRating = ratings.find(r => r.raterId === currentUserId);
+                const theirRating = ratings.find(r => r.ratedUserId === currentUserId);
+
+                return (
+                  <div className="space-y-4">
+                    <div className="text-sm text-emerald-600 text-center py-2 px-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                      {t('trade_detail.trade_completed_success')}
+                    </div>
+
+                    {/* My rating submission */}
+                    {myRating ? (
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                        <p className="text-xs text-slate-500 mb-1">{t('trade_detail.your_rating')}</p>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <svg key={star} className={`w-5 h-5 ${star <= myRating.score ? 'text-amber-400' : 'text-slate-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                          <span className="text-sm text-slate-600 ml-2">{myRating.score}/5</span>
+                        </div>
+                        {myRating.comment && <p className="text-sm text-slate-600 mt-2">{myRating.comment}</p>}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-lg p-4 border border-slate-200 space-y-3">
+                        <p className="text-sm font-medium text-slate-700">{t('trade_detail.rate_counterparty')}</p>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setRatingScore(star)}
+                              onMouseEnter={() => setRatingHover(star)}
+                              onMouseLeave={() => setRatingHover(0)}
+                              className="focus:outline-none"
+                            >
+                              <svg className={`w-8 h-8 transition-colors ${star <= (ratingHover || ratingScore) ? 'text-amber-400' : 'text-slate-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            </button>
+                          ))}
+                        </div>
+                        <textarea
+                          value={ratingComment}
+                          onChange={e => setRatingComment(e.target.value)}
+                          placeholder={t('trade_detail.rating_comment_placeholder')}
+                          className="input w-full text-sm"
+                          rows={2}
+                        />
+                        <button
+                          disabled={ratingSubmitting || ratingScore === 0}
+                          onClick={async () => {
+                            setRatingSubmitting(true);
+                            try {
+                              await ratingsApi.submit(tradeId, counterpartyId, ratingScore, ratingComment || undefined);
+                              const updated = await ratingsApi.getByTrade(tradeId);
+                              setRatings(updated);
+                              setRatingScore(0);
+                              setRatingComment('');
+                            } catch {
+                              setActionError(t('trade_detail.rating_error'));
+                            } finally {
+                              setRatingSubmitting(false);
+                            }
+                          }}
+                          className="btn-primary w-full"
+                        >
+                          {ratingSubmitting ? t('trade_detail.submitting') : t('trade_detail.submit_rating')}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Their rating of me */}
+                    {theirRating && (
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                        <p className="text-xs text-slate-500 mb-1">{t('trade_detail.their_rating')}</p>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <svg key={star} className={`w-5 h-5 ${star <= theirRating.score ? 'text-amber-400' : 'text-slate-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                          <span className="text-sm text-slate-600 ml-2">{theirRating.score}/5</span>
+                        </div>
+                        {theirRating.comment && <p className="text-sm text-slate-600 mt-2">{theirRating.comment}</p>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {['CANCELLED', 'REVOKED'].includes(trade.state) && (
                 <p className="text-sm text-slate-400 text-center py-2">
                   {t('trade_detail.final_state')}
                 </p>

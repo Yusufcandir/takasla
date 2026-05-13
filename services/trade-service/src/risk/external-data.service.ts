@@ -16,7 +16,7 @@ export class ExternalDataService {
     const listingUrl = this.config.get<string>('LISTING_SERVICE_URL', 'http://listing-service:3003');
     try {
       const { data } = await firstValueFrom(
-        this.http.get(`${listingUrl}/categories/${categoryId}`),
+        this.http.get(`${listingUrl}/categories/by-id/${categoryId}`),
       );
       return parseFloat(data.riskWeight ?? '0.5');
     } catch (err) {
