@@ -798,20 +798,30 @@ export class ShipmentsService implements OnModuleInit {
 
   private async checkAndNotifyBothDelivered(tradeId: string) {
     const shipments = await this.shipmentRepo.findBy({ tradeId });
-    const leg1 = shipments.filter(s => s.legOrder === 1);
-    const leg2 = shipments.filter(s => s.legOrder === 2);
 
-    // Check Leg 1 delivery → publish center.item_received
+    // Direct shipments — publish shipping.delivered
+    const directShipments = shipments.filter(s => s.leg === 'direct');
+    if (directShipments.length >= 2 && directShipments.every(s => s.status === ShipmentStatus.DELIVERED)) {
+      this.logger.log(`Both direct shipments delivered for trade ${tradeId}`);
+      await this.rabbitMQService.publish(ROUTING_KEYS.SHIPPING.DELIVERED, {
+        eventId: uuidv4(),
+        timestamp: new Date().toISOString(),
+        tradeId,
+        leg: 'direct',
+      });
+      return;
+    }
+
+    // Center flow — Leg 1 (to_center) delivery → publish center.item_received
+    const leg1 = shipments.filter(s => s.leg === 'to_center');
+    const leg2 = shipments.filter(s => s.leg === 'to_recipient');
+
     if (leg1.length >= 2) {
       const allLeg1Delivered = leg1.every((s) => s.status === ShipmentStatus.DELIVERED);
       if (allLeg1Delivered && leg2.length === 0) {
-        // Leg 1 both delivered → notify each item arrived at center
         for (const s of leg1) {
-          const party = s.senderId === (shipments.find(x => x.legOrder === 1 && x !== s)?.recipientId || '') ? 'B' : 'A';
-          // Determine party based on listing
           this.logger.log(`Leg 1 shipment ${s.id} delivered for trade ${tradeId}`);
         }
-        // Publish item_received for both parties
         await this.rabbitMQService.publish(ROUTING_KEYS.CENTER.ITEM_RECEIVED, {
           eventId: uuidv4(),
           timestamp: new Date().toISOString(),
@@ -829,7 +839,7 @@ export class ShipmentsService implements OnModuleInit {
       }
     }
 
-    // Check Leg 2 delivery → publish standard shipping.delivered
+    // Center flow — Leg 2 (to_recipient) delivery → publish shipping.delivered
     if (leg2.length >= 2) {
       const allLeg2Delivered = leg2.every((s) => s.status === ShipmentStatus.DELIVERED);
       if (allLeg2Delivered) {
@@ -841,20 +851,6 @@ export class ShipmentsService implements OnModuleInit {
           leg: 'to_recipient',
         });
         return;
-      }
-    }
-
-    // Fallback for direct shipments (no centers)
-    if (leg1.length === 0 && leg2.length === 0) {
-      const directShipments = shipments.filter(s => s.leg === 'direct');
-      if (directShipments.length >= 2 && directShipments.every(s => s.status === ShipmentStatus.DELIVERED)) {
-        this.logger.log(`Both direct shipments delivered for trade ${tradeId}`);
-        await this.rabbitMQService.publish(ROUTING_KEYS.SHIPPING.DELIVERED, {
-          eventId: uuidv4(),
-          timestamp: new Date().toISOString(),
-          tradeId,
-          leg: 'direct',
-        });
       }
     }
   }
