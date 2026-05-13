@@ -256,6 +256,7 @@ export const offersApi = {
   reject: (id: string) => api.post<Offer>(`/offers/${id}/reject`, {}),
   cancel: (id: string) => api.post<Offer>(`/offers/${id}/cancel`, {}),
   getMyOffers: () => api.get<{ sent: Offer[]; received: Offer[] }>('/offers/my'),
+  getPendingCount: () => api.get<{ count: number }>('/offers/pending-count'),
 };
 
 // Trades

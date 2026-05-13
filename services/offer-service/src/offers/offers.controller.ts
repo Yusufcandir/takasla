@@ -46,6 +46,12 @@ export class OffersController {
     return this.offersService.counterOffer(id, user.sub, body.proposedListingId, body.message);
   }
 
+  @Get('pending-count')
+  async pendingCount(@CurrentUser() user: JwtPayload) {
+    const count = await this.offersService.pendingReceivedCount(user.sub);
+    return { count };
+  }
+
   @Get('listing/:listingId')
   async findByListing(@Param('listingId') listingId: string) {
     return this.offersService.findByListing(listingId);

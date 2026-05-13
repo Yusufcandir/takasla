@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { isAuthenticated, clearTokens, getUserId } from '@/lib/auth';
-import { api, getImageUrl } from '@/lib/api';
+import { api, getImageUrl, offersApi } from '@/lib/api';
 import { LanguageProvider, useTranslation } from '@/contexts/LanguageContext';
 import LanguageToggle from '@/components/LanguageToggle';
 
@@ -36,6 +36,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [offerCount, setOfferCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -58,6 +59,15 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchOfferCount = useCallback(async () => {
+    try {
+      const data = await offersApi.getPendingCount();
+      setOfferCount(data.count);
+    } catch {
+      // Offer service may not be available
+    }
+  }, []);
+
   // Check auth state and fetch user data on mount + pathname change
   useEffect(() => {
     const authenticated = isAuthenticated();
@@ -66,18 +76,23 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
     if (authenticated) {
       fetchProfile();
       fetchUnreadCount();
+      fetchOfferCount();
     } else {
       setProfile(null);
       setUnreadCount(0);
+      setOfferCount(0);
     }
-  }, [pathname, fetchProfile, fetchUnreadCount]);
+  }, [pathname, fetchProfile, fetchUnreadCount, fetchOfferCount]);
 
-  // Poll unread count every 30 seconds when authenticated
+  // Poll unread/offer counts every 30 seconds when authenticated
   useEffect(() => {
     if (!authed) return;
-    const interval = setInterval(fetchUnreadCount, 30000);
+    const interval = setInterval(() => {
+      fetchUnreadCount();
+      fetchOfferCount();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [authed, fetchUnreadCount]);
+  }, [authed, fetchUnreadCount, fetchOfferCount]);
 
   // Click-outside handler for dropdown
   useEffect(() => {
@@ -186,6 +201,22 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
                     {t('nav.create_listing')}
+                  </Link>
+
+                  {/* Offers icon */}
+                  <Link
+                    href="/offers"
+                    className="relative p-2 text-slate-300 hover:text-white transition-colors rounded-md hover:bg-white/5"
+                    title={t('nav.my_offers')}
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                    </svg>
+                    {offerCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 leading-none">
+                        {offerCount > 99 ? '99+' : offerCount}
+                      </span>
+                    )}
                   </Link>
 
                   {/* Messages icon */}

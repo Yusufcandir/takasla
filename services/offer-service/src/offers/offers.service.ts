@@ -146,4 +146,10 @@ export class OffersService {
     ]);
     return { sent, received };
   }
+
+  async pendingReceivedCount(userId: string): Promise<number> {
+    return this.offerRepo.count({
+      where: { listingOwnerId: userId, status: OfferStatus.PENDING },
+    });
+  }
 }
