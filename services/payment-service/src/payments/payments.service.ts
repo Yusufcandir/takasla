@@ -286,8 +286,9 @@ export class PaymentsService implements OnModuleInit {
    * Check if all payments for a user on a trade are completed.
    * Returns true if every payment (trade_fee + trade_insurance if any) is succeeded.
    */
-  private async areAllUserPaymentsComplete(tradeId: string, userId: string): Promise<boolean> {
-    const payments = await this.paymentRepo.find({ where: { tradeId, userId } });
+  private async areAllUserPaymentsComplete(tradeId: string, userId: string, manager?: import('typeorm').EntityManager): Promise<boolean> {
+    const repo = manager ? manager.getRepository(PaymentEntity) : this.paymentRepo;
+    const payments = await repo.find({ where: { tradeId, userId } });
     if (payments.length === 0) return false;
     return payments.every((p) => p.status === 'succeeded');
   }
@@ -346,8 +347,9 @@ export class PaymentsService implements OnModuleInit {
           await manager.save(payment);
 
           // Check if all user payments for this trade are now complete
+          // Pass manager so the query sees the just-saved 'succeeded' status within this transaction
           const allComplete = payment.tradeId
-            ? await this.areAllUserPaymentsComplete(payment.tradeId, payment.userId)
+            ? await this.areAllUserPaymentsComplete(payment.tradeId, payment.userId, manager)
             : true;
 
           await this.outboxService.addToOutbox(
