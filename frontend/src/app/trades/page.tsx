@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { tradesApi } from '@/lib/api';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { Trade } from '@/types';
@@ -28,9 +29,13 @@ const RISK_BADGE: Record<string, string> = {
 
 export default function TradesPage() {
   const { t, locale } = useTranslation();
+  const searchParams = useSearchParams();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const initialFilter = (['all', 'active', 'completed'] as const).includes(searchParams.get('filter') as any)
+    ? (searchParams.get('filter') as 'all' | 'active' | 'completed')
+    : 'all';
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>(initialFilter);
 
   useEffect(() => {
     tradesApi

@@ -336,7 +336,7 @@ export default function ProfilePage() {
               <span className="text-3xl font-bold text-slate-900">{profile.totalTrades}</span>
               <p className="text-sm text-slate-500 mt-1">{t('profile.total_trades')}</p>
             </Link>
-            <Link href="/trades" className="card p-5 text-center hover:shadow-md transition-shadow cursor-pointer">
+            <Link href="/trades?filter=completed" className="card p-5 text-center hover:shadow-md transition-shadow cursor-pointer">
               <span className="text-3xl font-bold text-emerald-600">{profile.completedTrades}</span>
               <p className="text-sm text-slate-500 mt-1">{t('profile.completed')}</p>
             </Link>
