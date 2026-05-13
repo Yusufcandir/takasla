@@ -15,6 +15,7 @@ const SERVICE_MAP: Record<string, { hostEnvKey: string; portEnvKey: string; defa
   reputation:   { hostEnvKey: 'REPUTATION_SERVICE_HOST',  portEnvKey: 'REPUTATION_SERVICE_PORT',  defaultHost: 'reputation-service',  defaultPort: 3006 },
   ratings:      { hostEnvKey: 'REPUTATION_SERVICE_HOST',  portEnvKey: 'REPUTATION_SERVICE_PORT',  defaultHost: 'reputation-service',  defaultPort: 3006 },
   'fraud-flags': { hostEnvKey: 'REPUTATION_SERVICE_HOST',  portEnvKey: 'REPUTATION_SERVICE_PORT',  defaultHost: 'reputation-service',  defaultPort: 3006 },
+  trust:        { hostEnvKey: 'REPUTATION_SERVICE_HOST',  portEnvKey: 'REPUTATION_SERVICE_PORT',  defaultHost: 'reputation-service',  defaultPort: 3006 },
   disputes:     { hostEnvKey: 'DISPUTE_SERVICE_HOST',     portEnvKey: 'DISPUTE_SERVICE_PORT',     defaultHost: 'dispute-service',     defaultPort: 3007 },
   certificates: { hostEnvKey: 'CERTIFICATE_SERVICE_HOST', portEnvKey: 'CERTIFICATE_SERVICE_PORT', defaultHost: 'certificate-service', defaultPort: 3008 },
   shipments:    { hostEnvKey: 'SHIPPING_SERVICE_HOST',    portEnvKey: 'SHIPPING_SERVICE_PORT',    defaultHost: 'shipping-service',    defaultPort: 3009 },
