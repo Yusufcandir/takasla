@@ -172,7 +172,7 @@ export default function AdminFraudFlagsPage() {
             const flaggedImages = evidence?.flaggedImages as Array<{ url: string; aiScore: number }> | undefined;
 
             return (
-              <div key={flag.id} className={`card px-5 py-4 ${flag.reviewed ? 'opacity-70' : ''}`}>
+              <div key={flag.id} onClick={() => !flag.reviewed && openReview(flag)} className={`card px-5 py-4 ${flag.reviewed ? 'opacity-70' : 'cursor-pointer hover:shadow-md transition-shadow'}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1 min-w-0">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${flag.reviewed ? 'bg-slate-100' : 'bg-red-50'}`}>
@@ -218,7 +218,7 @@ export default function AdminFraudFlagsPage() {
                       {/* Show listing link if available */}
                       {listingId && (
                         <p className="text-xs text-slate-500 mt-1">
-                          Listing: <span className="font-mono">{listingId.slice(0, 12)}...</span>
+                          Listing: <a href={`${process.env.NEXT_PUBLIC_USER_FRONTEND_URL || 'https://takasla.duckdns.org'}/listings/${listingId}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="font-mono text-amber-700 hover:text-amber-900 underline">{listingId.slice(0, 12)}...</a>
                         </p>
                       )}
 
@@ -242,7 +242,7 @@ export default function AdminFraudFlagsPage() {
                   <div className="flex-shrink-0">
                     {!flag.reviewed && (
                       <button
-                        onClick={() => openReview(flag)}
+                        onClick={(e) => { e.stopPropagation(); openReview(flag); }}
                         className="btn-secondary btn-sm"
                       >
                         Review
