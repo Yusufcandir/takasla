@@ -14,3 +14,14 @@ oci-create.log
 oci-ssh-key.*
 .claude/
 metrics-report.*
+
+# Documentation & helper files (not for public)
+CLAUDE.md
+DEPLOYMENT.md
+PROGRESS.md
+PROJE_DOKUMANTASYONU.md
+SERVER_OPERATIONS.md
+Takasla_Project_Report.html
+create-turkish-listings.js
+scripts/ssh-tunnel.bat
+stock photos/
