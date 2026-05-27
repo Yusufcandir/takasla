@@ -95,7 +95,7 @@ export interface Dispute {
   resolution?: string;
   resolvedBy?: string;
   resolvedAt?: string;
-  outcomeType?: 'buyer_wins' | 'seller_wins' | 'split' | 'escalated';
+  outcomeType?: 'buyer_wins' | 'seller_wins' | 'split' | 'escalated' | 'ship_to_center';
   compensationAction?: 'full_refund' | 'partial_refund' | 'no_refund' | 're_ship';
   compensationAmount?: number;
   appealStatus?: 'none' | 'pending' | 'upheld' | 'overturned';
