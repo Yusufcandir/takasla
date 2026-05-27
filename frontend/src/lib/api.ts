@@ -329,10 +329,6 @@ export const disputesApi = {
     api.post<Dispute>(`/disputes/${id}/appeal`, { reason }),
 };
 
-export const centersApi = {
-  getById: (id: string) => api.get<{ id: string; name: string; code: string; city: string; district: string; street: string; postalCode: string; country: string; phone: string; email?: string; contactName: string }>(`/centers/${id}`),
-};
-
 // Profile (backend controller prefix is "profiles")
 export const profileApi = {
   getMyProfile: () => api.get<Profile>('/profiles/me'),
