@@ -292,9 +292,16 @@ export default function TradeDetailPage() {
       const uploaded = await disputesApi.uploadEvidenceFiles(disputeFiles);
       // 2. Open the dispute (creates trade event + dispute record)
       await tradesApi.openDispute(tradeId, disputeReason, disputeDescription);
-      // 3. Get the dispute that was just created and attach evidence
-      const disputes = await disputesApi.getByTrade(tradeId);
-      const dispute = disputes[disputes.length - 1];
+      // 3. Wait for the dispute to be created (async via RabbitMQ) then attach evidence
+      let dispute = null;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const disputes = await disputesApi.getByTrade(tradeId);
+        if (disputes.length > 0) {
+          dispute = disputes[disputes.length - 1];
+          break;
+        }
+      }
       if (dispute) {
         for (const file of uploaded) {
           const ext = file.originalName.split('.').pop()?.toLowerCase() || '';
