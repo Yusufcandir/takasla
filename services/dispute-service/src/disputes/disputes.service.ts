@@ -46,19 +46,6 @@ export class DisputesService {
       },
     );
 
-    // Listen for center verification results to auto-resolve ship-to-center disputes
-    await this.rabbitMQService.subscribe(
-      'dispute.on-center-events',
-      [ROUTING_KEYS.CENTER.VERIFICATION_REJECTED, ROUTING_KEYS.CENTER.BOTH_VERIFIED],
-      async (msg, routingKey) => {
-        const { tradeId } = msg as { tradeId: string };
-        if (!tradeId) return;
-
-        const centerOutcome = routingKey === ROUTING_KEYS.CENTER.VERIFICATION_REJECTED
-          ? 'rejected' : 'approved';
-        await this.autoResolveFromCenter(tradeId, centerOutcome);
-      },
-    );
   }
 
   async openDispute(
@@ -121,36 +108,31 @@ export class DisputesService {
   ): Promise<DisputeEntity> {
     const dispute = await this.findById(disputeId);
 
-    // Ship to center: don't resolve yet, send item to center for physical inspection
+    // Ship to center: don't resolve yet — user must ship item to center for physical inspection
     if (outcomeType === DisputeOutcome.SHIP_TO_CENTER) {
       if (!centerId) {
         throw new ForbiddenException('A verification center must be selected for ship-to-center resolution');
       }
 
+      // Generate a unique 8-char shipment code
+      const shipmentCode = uuidv4().replace(/-/g, '').substring(0, 8).toUpperCase();
+
       dispute.status = DisputeStatus.UNDER_REVIEW;
       dispute.resolution = resolution;
       dispute.resolvedBy = moderatorId;
       dispute.outcomeType = outcomeType;
+      dispute.centerId = centerId;
+      dispute.shipmentCode = shipmentCode;
       const saved = await this.disputeRepo.save(dispute);
 
       await this.actionRepo.save({
         disputeId,
         moderatorId,
         actionType: 'ship_to_center',
-        notes: `Ship to center for inspection: ${resolution}`,
+        notes: `Ship to center for inspection (code: ${shipmentCode}): ${resolution}`,
       });
 
-      await this.rabbitMQService.publish(ROUTING_KEYS.DISPUTE.SHIP_TO_CENTER, {
-        eventId: uuidv4(),
-        correlationId: uuidv4(),
-        idempotencyKey: `ship-center:${dispute.id}`,
-        disputeId: dispute.id,
-        tradeId: dispute.tradeId,
-        centerId,
-        moderatorId,
-      });
-
-      this.logger.log(`Dispute ${dispute.id}: shipping to center ${centerId} for inspection`);
+      this.logger.log(`Dispute ${dispute.id}: awaiting shipment to center ${centerId}, code=${shipmentCode}`);
       return saved;
     }
 
@@ -214,58 +196,92 @@ export class DisputesService {
     return saved;
   }
 
-  async autoResolveFromCenter(
-    tradeId: string,
-    centerOutcome: 'rejected' | 'approved',
-  ): Promise<void> {
-    const disputes = await this.disputeRepo.find({ where: { tradeId } });
-    const dispute = disputes.find(d =>
-      d.status === DisputeStatus.UNDER_REVIEW &&
-      d.outcomeType === DisputeOutcome.SHIP_TO_CENTER,
-    );
-    if (!dispute) return;
-
-    if (centerOutcome === 'rejected') {
-      // Item confirmed damaged → buyer wins, full refund
-      dispute.status = DisputeStatus.RESOLVED;
-      dispute.resolvedAt = new Date();
-      dispute.outcomeType = DisputeOutcome.BUYER_WINS;
-      dispute.compensationAction = CompensationAction.FULL_REFUND;
-      dispute.resolution = (dispute.resolution || '') + ' | Center confirmed item damaged — full refund issued.';
-      dispute.appealDeadline = new Date(Date.now() + 72 * 60 * 60 * 1000);
-    } else {
-      // Item is fine → seller wins, no refund
-      dispute.status = DisputeStatus.RESOLVED;
-      dispute.resolvedAt = new Date();
-      dispute.outcomeType = DisputeOutcome.SELLER_WINS;
-      dispute.compensationAction = CompensationAction.NO_REFUND;
-      dispute.resolution = (dispute.resolution || '') + ' | Center verified item is in acceptable condition — trade completed.';
-      dispute.appealDeadline = new Date(Date.now() + 72 * 60 * 60 * 1000);
+  async markCenterReceived(disputeId: string, moderatorId: string): Promise<DisputeEntity> {
+    const dispute = await this.findById(disputeId);
+    if (dispute.outcomeType !== DisputeOutcome.SHIP_TO_CENTER) {
+      throw new ForbiddenException('This dispute is not in a ship-to-center flow');
     }
-    await this.disputeRepo.save(dispute);
+    if (dispute.centerReceivedAt) {
+      throw new ForbiddenException('Item has already been marked as received');
+    }
+    dispute.centerReceivedAt = new Date();
+    const saved = await this.disputeRepo.save(dispute);
 
     await this.actionRepo.save({
-      disputeId: dispute.id,
-      moderatorId: 'system',
-      actionType: 'center_auto_resolve',
-      notes: `Center ${centerOutcome}: ${dispute.outcomeType} / ${dispute.compensationAction}`,
+      disputeId,
+      moderatorId,
+      actionType: 'center_received',
+      notes: `Item received at center (code: ${dispute.shipmentCode})`,
     });
 
-    const outcome = centerOutcome === 'rejected' ? 'revoked' : 'completed';
+    this.logger.log(`Dispute ${dispute.id}: item received at center`);
+    return saved;
+  }
+
+  async finalizeCenterInspection(
+    disputeId: string,
+    moderatorId: string,
+    decision: 'damaged' | 'not_damaged',
+    notes?: string,
+  ): Promise<DisputeEntity> {
+    const dispute = await this.findById(disputeId);
+    if (dispute.outcomeType !== DisputeOutcome.SHIP_TO_CENTER || !dispute.centerReceivedAt) {
+      throw new ForbiddenException('Item must be received at center before making a decision');
+    }
+    if (dispute.status === DisputeStatus.RESOLVED) {
+      throw new ForbiddenException('This dispute has already been resolved');
+    }
+
+    if (decision === 'damaged') {
+      dispute.outcomeType = DisputeOutcome.BUYER_WINS;
+      dispute.compensationAction = CompensationAction.FULL_REFUND;
+      dispute.resolution = (dispute.resolution || '') + ' | Center confirmed item damaged — full refund.';
+    } else {
+      dispute.outcomeType = DisputeOutcome.SELLER_WINS;
+      dispute.compensationAction = CompensationAction.NO_REFUND;
+      dispute.resolution = (dispute.resolution || '') + ' | Center verified item is acceptable — trade completed.';
+    }
+
+    dispute.status = DisputeStatus.RESOLVED;
+    dispute.resolvedAt = new Date();
+    dispute.appealDeadline = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    const saved = await this.disputeRepo.save(dispute);
+
+    await this.actionRepo.save({
+      disputeId,
+      moderatorId,
+      actionType: 'center_decision',
+      notes: `Center decision: ${decision}${notes ? ' — ' + notes : ''}`,
+    });
+
+    const outcome = decision === 'damaged' ? 'revoked' : 'completed';
     await this.rabbitMQService.publish(ROUTING_KEYS.DISPUTE.RESOLVED, {
       eventId: uuidv4(),
       correlationId: uuidv4(),
-      idempotencyKey: `center-resolve:${dispute.id}`,
+      idempotencyKey: `center-decision:${dispute.id}`,
       disputeId: dispute.id,
       tradeId: dispute.tradeId,
       resolution: dispute.resolution,
-      resolvedBy: 'center_verification',
+      resolvedBy: moderatorId,
       outcome,
       outcomeType: dispute.outcomeType,
       compensationAction: dispute.compensationAction,
     });
 
-    this.logger.log(`Dispute ${dispute.id} auto-resolved from center: ${centerOutcome} → ${dispute.outcomeType}`);
+    await this.rabbitMQService.publish(ROUTING_KEYS.MODERATION.DISPUTE_RESOLVED, {
+      eventId: uuidv4(),
+      correlationId: uuidv4(),
+      idempotencyKey: `center-notify:${dispute.id}`,
+      disputeId: dispute.id,
+      tradeId: dispute.tradeId,
+      openedBy: dispute.openedBy,
+      resolution: dispute.resolution,
+      outcomeType: dispute.outcomeType,
+      compensationAction: dispute.compensationAction,
+    });
+
+    this.logger.log(`Dispute ${dispute.id}: center decision=${decision} → ${dispute.outcomeType}`);
+    return saved;
   }
 
   async appealDispute(

@@ -171,6 +171,11 @@ export interface Dispute {
   resolution?: string;
   resolvedBy?: string;
   resolvedAt?: string;
+  outcomeType?: string;
+  compensationAction?: string;
+  centerId?: string;
+  shipmentCode?: string;
+  centerReceivedAt?: string;
   evidence: Evidence[];
   createdAt: string;
   updatedAt: string;

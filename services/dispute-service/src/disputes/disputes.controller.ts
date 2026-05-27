@@ -3,7 +3,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard, CurrentUser, Roles, Public, StorageService } from '@exchange/common';
 import { JwtPayload } from '@exchange/shared-types';
 import { DisputesService } from './disputes.service';
-import { OpenDisputeDto, UploadEvidenceDto, ResolveDisputeDto, AppealDisputeDto, AddActionDto } from './dto';
+import { OpenDisputeDto, UploadEvidenceDto, ResolveDisputeDto, AppealDisputeDto, AddActionDto, CenterDecisionDto } from './dto';
 import { memoryStorage } from 'multer';
 import { join } from 'path';
 import { Response } from 'express';
@@ -103,6 +103,25 @@ export class DisputesController {
       body.outcomeType, body.compensationAction ?? 'no_refund' as any,
       body.compensationAmount, body.centerId,
     );
+  }
+
+  @Post(':id/center-received')
+  @Roles('moderator', 'admin')
+  async markCenterReceived(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.disputesService.markCenterReceived(id, user.sub);
+  }
+
+  @Post(':id/center-decision')
+  @Roles('moderator', 'admin')
+  async centerDecision(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: CenterDecisionDto,
+  ) {
+    return this.disputesService.finalizeCenterInspection(id, user.sub, body.decision, body.notes);
   }
 
   @Post(':id/appeal')

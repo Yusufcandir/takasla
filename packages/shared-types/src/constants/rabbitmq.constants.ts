@@ -84,7 +84,6 @@ export const QUEUES = {
   PAYMENT_ON_DISPUTE: 'payment.on-dispute-events',
   FRAUD_ON_TRADE: 'fraud.on-trade-proof-events',
   FRAUD_ON_LISTING: 'fraud.on-listing-events',
-  TRADE_ON_DISPUTE_CENTER: 'trade.on-dispute-center',
   TRADE_ON_CENTER: 'trade.on-center-events',
   SHIPPING_ON_CENTER: 'shipping.on-center-events',
   AUTH_ON_MODERATION: 'auth.on-moderation-events',

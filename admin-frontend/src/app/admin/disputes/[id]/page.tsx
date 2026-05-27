@@ -23,11 +23,19 @@ export default function AdminDisputeDetailPage() {
   const [resolveSuccess, setResolveSuccess] = useState(false);
   const [centers, setCenters] = useState<VerificationCenter[]>([]);
   const [selectedCenterId, setSelectedCenterId] = useState('');
+  const [centerInfo, setCenterInfo] = useState<VerificationCenter | null>(null);
+  const [centerActionLoading, setCenterActionLoading] = useState(false);
+  const [centerNotes, setCenterNotes] = useState('');
 
   useEffect(() => {
     if (!isModeratorOrAdmin()) { window.location.href = '/login'; return; }
     disputesApi.getById(disputeId)
-      .then(setDispute)
+      .then((d) => {
+        setDispute(d);
+        if (d.centerId) {
+          centersApi.getById(d.centerId).then(setCenterInfo).catch(() => {});
+        }
+      })
       .finally(() => setLoading(false));
     centersApi.list().then(setCenters).catch(() => {});
   }, [disputeId]);
@@ -268,15 +276,115 @@ export default function AdminDisputeDetailPage() {
             <div className="px-5 py-4 border-b border-slate-100"><h2 className="font-semibold text-slate-900">Resolution</h2></div>
             <div className="p-5">
               {resolveSuccess || isResolved || (dispute.status === 'under_review' && dispute.outcomeType === 'ship_to_center') ? (
-                <div className="text-center py-4">
+                <div className="py-4">
                   {dispute.outcomeType === 'ship_to_center' && dispute.status === 'under_review' ? (
-                    <>
-                      <svg className="w-10 h-10 text-cyan-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                      <p className="text-sm text-cyan-700 font-medium">Shipped to center for inspection</p>
-                      <p className="text-xs text-slate-500 mt-2">Awaiting center verification. Outcome will be determined automatically after inspection.</p>
-                    </>
+                    <div className="space-y-4">
+                      {/* Shipment code */}
+                      {dispute.shipmentCode && (
+                        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 text-center">
+                          <p className="text-xs text-cyan-600 uppercase tracking-wide font-medium mb-1">Shipment Code</p>
+                          <p className="text-2xl font-bold text-cyan-800 font-mono tracking-widest">{dispute.shipmentCode}</p>
+                        </div>
+                      )}
+
+                      {/* Center info */}
+                      {centerInfo && (
+                        <div className="bg-slate-50 rounded-lg p-3">
+                          <p className="text-xs text-slate-500 mb-1">Shipping to</p>
+                          <p className="text-sm font-medium text-slate-800">{centerInfo.name}</p>
+                          <p className="text-xs text-slate-500">{centerInfo.street}, {centerInfo.district}, {centerInfo.city} {centerInfo.postalCode}</p>
+                        </div>
+                      )}
+
+                      {/* Mark as Received */}
+                      {!dispute.centerReceivedAt ? (
+                        <div>
+                          <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-3">
+                            Waiting for item to arrive at center. Mark as received once the item is delivered.
+                          </p>
+                          <button
+                            onClick={async () => {
+                              setCenterActionLoading(true);
+                              try {
+                                const updated = await adminApi.markCenterReceived(disputeId);
+                                setDispute(updated);
+                              } catch (err) {
+                                setResolveError(err instanceof Error ? err.message : 'Failed');
+                              } finally {
+                                setCenterActionLoading(false);
+                              }
+                            }}
+                            disabled={centerActionLoading}
+                            className="btn-primary w-full"
+                          >
+                            {centerActionLoading ? 'Processing...' : 'Mark as Received'}
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">
+                            <p className="text-sm text-emerald-700 font-medium">Item received at center</p>
+                            <p className="text-xs text-emerald-600">{new Date(dispute.centerReceivedAt).toLocaleString()}</p>
+                          </div>
+
+                          <div>
+                            <label className="label">Inspection Notes</label>
+                            <textarea
+                              value={centerNotes}
+                              onChange={(e) => setCenterNotes(e.target.value)}
+                              rows={3}
+                              placeholder="Describe inspection findings..."
+                              className="input min-h-[80px] resize-y mb-3"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              onClick={async () => {
+                                setCenterActionLoading(true);
+                                try {
+                                  const updated = await adminApi.centerDecision(disputeId, { decision: 'damaged', notes: centerNotes });
+                                  setDispute(updated);
+                                  setResolveSuccess(true);
+                                } catch (err) {
+                                  setResolveError(err instanceof Error ? err.message : 'Failed');
+                                } finally {
+                                  setCenterActionLoading(false);
+                                }
+                              }}
+                              disabled={centerActionLoading}
+                              className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2.5 px-3 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {centerActionLoading ? '...' : 'Damaged — Refund'}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                setCenterActionLoading(true);
+                                try {
+                                  const updated = await adminApi.centerDecision(disputeId, { decision: 'not_damaged', notes: centerNotes });
+                                  setDispute(updated);
+                                  setResolveSuccess(true);
+                                } catch (err) {
+                                  setResolveError(err instanceof Error ? err.message : 'Failed');
+                                } finally {
+                                  setCenterActionLoading(false);
+                                }
+                              }}
+                              disabled={centerActionLoading}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2.5 px-3 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {centerActionLoading ? '...' : 'OK — Complete'}
+                            </button>
+                          </div>
+
+                          {resolveError && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mt-3">{resolveError}</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <>
+                    <div className="text-center">
                       <svg className="w-10 h-10 text-emerald-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       <p className="text-sm text-emerald-700 font-medium">Dispute resolved</p>
                       {dispute.resolvedAt && <p className="text-xs text-slate-400 mt-1">{new Date(dispute.resolvedAt).toLocaleString()}</p>}
@@ -285,7 +393,7 @@ export default function AdminDisputeDetailPage() {
                           Outcome: {dispute.outcomeType.replace(/_/g, ' ')} &middot; {dispute.compensationAction?.replace(/_/g, ' ')}
                         </p>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               ) : (

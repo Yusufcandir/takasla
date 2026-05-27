@@ -104,6 +104,9 @@ export interface Dispute {
   appealDeadline?: string;
   slaDeadline?: string;
   escalatedAt?: string;
+  centerId?: string;
+  shipmentCode?: string;
+  centerReceivedAt?: string;
   evidence: Evidence[];
   createdAt: string;
   updatedAt: string;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { disputesApi } from '@/lib/api';
+import { disputesApi, centersApi } from '@/lib/api';
 import { useParams } from 'next/navigation';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { Dispute, Evidence } from '@/types';
@@ -45,12 +45,19 @@ export default function DisputeDetailPage() {
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [center, setCenter] = useState<any>(null);
 
   useEffect(() => {
     if (!disputeId) return;
     disputesApi
       .getById(disputeId)
-      .then(setDispute)
+      .then((d) => {
+        setDispute(d);
+        if (d.centerId) {
+          centersApi.getById(d.centerId).then(setCenter).catch(() => {});
+        }
+      })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load dispute'))
       .finally(() => setLoading(false));
   }, [disputeId]);
@@ -173,6 +180,52 @@ export default function DisputeDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Center Shipping Instructions */}
+          {dispute.outcomeType === 'ship_to_center' && (
+            <div className="card border-2 border-cyan-200 bg-cyan-50/30">
+              <div className="px-5 py-4 border-b border-cyan-200 bg-cyan-50">
+                <h2 className="font-semibold text-cyan-900 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                  {t('dispute_detail.center_title')}
+                </h2>
+              </div>
+              <div className="p-5 space-y-4">
+                {!dispute.centerReceivedAt ? (
+                  <>
+                    <p className="text-sm text-slate-700">{t('dispute_detail.center_instructions')}</p>
+                    {dispute.shipmentCode && (
+                      <div className="bg-white border-2 border-cyan-300 rounded-xl p-4 text-center">
+                        <span className="text-xs text-slate-500 uppercase tracking-wide block mb-1">{t('dispute_detail.shipment_code')}</span>
+                        <span className="text-3xl font-mono font-bold text-cyan-700 tracking-widest">{dispute.shipmentCode}</span>
+                      </div>
+                    )}
+                    {center && (
+                      <div className="bg-white rounded-lg p-4 border border-slate-200">
+                        <span className="text-xs text-slate-500 uppercase tracking-wide block mb-2">{t('dispute_detail.center_address')}</span>
+                        <p className="text-sm font-semibold text-slate-900">{center.name}</p>
+                        <p className="text-sm text-slate-600">{center.street}</p>
+                        <p className="text-sm text-slate-600">{center.district}, {center.city} {center.postalCode}</p>
+                        <p className="text-sm text-slate-600">{center.country}</p>
+                        {center.phone && <p className="text-sm text-slate-500 mt-1">{center.phone}</p>}
+                      </div>
+                    )}
+                  </>
+                ) : dispute.status === 'under_review' ? (
+                  <div className="text-center py-4">
+                    <svg className="w-10 h-10 text-cyan-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <p className="text-sm font-medium text-cyan-700">{t('dispute_detail.center_received')}</p>
+                    <p className="text-xs text-slate-500 mt-1">{t('dispute_detail.center_awaiting')}</p>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <svg className="w-10 h-10 text-emerald-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <p className="text-sm font-medium text-emerald-700">{t('dispute_detail.center_inspected')}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Evidence Timeline */}
           <div className="card">

@@ -569,6 +569,13 @@
   "dispute_detail.evidence_desc_placeholder": "Describe this evidence...",
   "dispute_detail.uploading": "Uploading...",
   "dispute_detail.upload_submit": "Upload Evidence",
+  "dispute_detail.center_title": "Ship Item to Verification Center",
+  "dispute_detail.center_instructions": "The moderator has requested that you ship the disputed item to a verification center for physical inspection. Please use the shipment code below when handing the package to your courier.",
+  "dispute_detail.shipment_code": "Shipment Code",
+  "dispute_detail.center_address": "Ship To",
+  "dispute_detail.center_received": "Item Received at Center",
+  "dispute_detail.center_awaiting": "Your item is being inspected. You will be notified of the result.",
+  "dispute_detail.center_inspected": "Inspection complete. See resolution above.",
 
   "messages.title": "Messages",
   "messages.empty_title": "No messages yet",

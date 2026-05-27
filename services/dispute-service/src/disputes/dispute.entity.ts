@@ -54,6 +54,16 @@ export class DisputeEntity {
   @Column({ name: 'appeal_deadline', type: 'timestamptz', nullable: true })
   appealDeadline?: Date;
 
+  // Center inspection fields (ship-to-center flow)
+  @Column({ name: 'center_id', type: 'uuid', nullable: true })
+  centerId?: string;
+
+  @Column({ name: 'shipment_code', type: 'varchar', length: 20, nullable: true })
+  shipmentCode?: string;
+
+  @Column({ name: 'center_received_at', type: 'timestamptz', nullable: true })
+  centerReceivedAt?: Date;
+
   // SLA deadline for moderator response
   @Column({ name: 'sla_deadline', type: 'timestamptz', nullable: true })
   slaDeadline?: Date;

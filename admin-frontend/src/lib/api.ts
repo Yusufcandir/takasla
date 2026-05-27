@@ -151,6 +151,10 @@ export const adminApi = {
       centerId?: string;
     },
   ) => api.post<Dispute>(`/disputes/${disputeId}/resolve`, data),
+  markCenterReceived: (disputeId: string) =>
+    api.post<Dispute>(`/disputes/${disputeId}/center-received`, {}),
+  centerDecision: (disputeId: string, data: { decision: 'damaged' | 'not_damaged'; notes?: string }) =>
+    api.post<Dispute>(`/disputes/${disputeId}/center-decision`, data),
   getUsers: () => api.get<UserSummary[]>('/auth/users'),
   deleteUser: (userId: string) => api.delete<void>(`/auth/users/${userId}`),
   banUser: (userId: string) => api.post<void>(`/auth/users/${userId}/ban`, {}),

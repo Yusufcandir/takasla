@@ -72,3 +72,12 @@ export class AddActionDto {
   @IsOptional()
   notes?: string;
 }
+
+export class CenterDecisionDto {
+  @IsIn(['damaged', 'not_damaged'])
+  decision!: 'damaged' | 'not_damaged';
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}

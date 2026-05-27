@@ -569,6 +569,13 @@
   "dispute_detail.evidence_desc_placeholder": "Bu kanıtı açıklayın...",
   "dispute_detail.uploading": "Yükleniyor...",
   "dispute_detail.upload_submit": "Kanıt Yükle",
+  "dispute_detail.center_title": "Ürünü Doğrulama Merkezine Gönderin",
+  "dispute_detail.center_instructions": "Moderatör, itiraz edilen ürünün fiziksel inceleme için bir doğrulama merkezine gönderilmesini talep etti. Paketi kargoya verirken aşağıdaki gönderi kodunu kullanın.",
+  "dispute_detail.shipment_code": "Gönderi Kodu",
+  "dispute_detail.center_address": "Gönderilecek Adres",
+  "dispute_detail.center_received": "Ürün Merkeze Ulaştı",
+  "dispute_detail.center_awaiting": "Ürününüz inceleniyor. Sonuç size bildirilecektir.",
+  "dispute_detail.center_inspected": "İnceleme tamamlandı. Yukarıdaki kararı inceleyin.",
 
   "messages.title": "Mesajlar",
   "messages.empty_title": "Henüz mesaj yok",
