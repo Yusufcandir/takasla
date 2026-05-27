@@ -485,6 +485,11 @@ services:
       - RABBITMQ_USER=exchange
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
       - TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE:-true}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME:-exchange-uploads}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
     depends_on:
       postgres-dispute:
         condition: service_healthy

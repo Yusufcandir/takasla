@@ -303,9 +303,27 @@ export const tradesApi = {
 export const disputesApi = {
   getByTrade: (tradeId: string) => api.get<Dispute[]>(`/disputes/trade/${tradeId}`),
   getById: (id: string) => api.get<Dispute>(`/disputes/${id}`),
+  uploadEvidenceFiles: async (files: File[]): Promise<{ url: string; originalName: string; size: number; hash: string }[]> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const formData = new FormData();
+    for (const file of files) {
+      const compressed = file.type.startsWith('image/') ? await compressImage(file) : file;
+      formData.append('files', compressed);
+    }
+    const res = await fetch(`${API_URL}/disputes/evidence-upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: res.statusText }));
+      throw new Error(error.message || `Upload failed: ${res.status}`);
+    }
+    return res.json();
+  },
   uploadEvidence: (
     id: string,
-    data: { type: string; url: string; description?: string; fileHash?: string },
+    data: { type: string; url?: string; description?: string; fileHash?: string },
   ) => api.post<Evidence>(`/disputes/${id}/evidence`, data),
   appeal: (id: string, reason: string) =>
     api.post<Dispute>(`/disputes/${id}/appeal`, { reason }),

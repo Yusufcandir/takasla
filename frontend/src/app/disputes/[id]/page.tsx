@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { disputesApi } from '@/lib/api';
 import { useParams } from 'next/navigation';
@@ -22,6 +22,13 @@ const TYPE_ICONS: Record<string, string> = {
   text: 'bg-slate-100 text-slate-600',
 };
 
+const ACCEPT_BY_TYPE: Record<string, string> = {
+  photo: 'image/*',
+  video: 'video/*',
+  document: '.pdf,.doc,.docx,.txt',
+  text: '.txt,.pdf',
+};
+
 export default function DisputeDetailPage() {
   const { t, locale } = useTranslation();
   const params = useParams();
@@ -32,11 +39,12 @@ export default function DisputeDetailPage() {
   const [error, setError] = useState('');
 
   const [evidenceType, setEvidenceType] = useState<Evidence['type']>('photo');
-  const [evidenceUrl, setEvidenceUrl] = useState('');
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [evidenceDescription, setEvidenceDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!disputeId) return;
@@ -47,20 +55,34 @@ export default function DisputeDetailPage() {
       .finally(() => setLoading(false));
   }, [disputeId]);
 
+  // Reset file when type changes (accept attribute changes)
+  useEffect(() => {
+    setEvidenceFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [evidenceType]);
+
   const handleUploadEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!evidenceFile) return;
     setUploadError('');
     setUploadSuccess(false);
     setSubmitting(true);
     try {
+      // Step 1: Upload file to get URL + hash
+      const uploaded = await disputesApi.uploadEvidenceFiles([evidenceFile]);
+      const { url, hash } = uploaded[0];
+
+      // Step 2: Create evidence record with URL + hash
       const newEvidence = await disputesApi.uploadEvidence(disputeId, {
         type: evidenceType,
-        url: evidenceUrl,
+        url,
         description: evidenceDescription || undefined,
+        fileHash: hash,
       });
       setDispute((prev) => prev ? { ...prev, evidence: [...prev.evidence, newEvidence] } : prev);
-      setEvidenceUrl('');
+      setEvidenceFile(null);
       setEvidenceDescription('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       setUploadSuccess(true);
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : 'Failed to upload evidence');
@@ -175,14 +197,16 @@ export default function DisputeDetailPage() {
                           {new Date(ev.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      <a
-                        href={ev.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-navy-900 hover:underline break-all"
-                      >
-                        {ev.url.length > 60 ? ev.url.slice(0, 60) + '...' : ev.url}
-                      </a>
+                      {ev.url && (
+                        <a
+                          href={ev.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-navy-900 hover:underline break-all"
+                        >
+                          {ev.url.length > 60 ? ev.url.slice(0, 60) + '...' : ev.url}
+                        </a>
+                      )}
                       {ev.description && (
                         <p className="text-xs text-slate-500 mt-1">{ev.description}</p>
                       )}
@@ -231,15 +255,19 @@ export default function DisputeDetailPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="label">{t('dispute_detail.url')}</label>
+                    <label className="label">{t('dispute_detail.file')}</label>
                     <input
-                      type="url"
-                      value={evidenceUrl}
-                      onChange={(e) => setEvidenceUrl(e.target.value)}
-                      placeholder="https://..."
-                      required
-                      className="input"
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ACCEPT_BY_TYPE[evidenceType] || '*/*'}
+                      onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
+                      className="block w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-navy-50 file:text-navy-900 hover:file:bg-navy-100 cursor-pointer"
                     />
+                    {evidenceFile && (
+                      <p className="text-xs text-slate-500 mt-1 truncate">
+                        {evidenceFile.name} ({(evidenceFile.size / 1024).toFixed(0)} KB)
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="label">{t('dispute_detail.evidence_desc')}</label>
@@ -251,8 +279,8 @@ export default function DisputeDetailPage() {
                       placeholder={t('dispute_detail.evidence_desc_placeholder')}
                     />
                   </div>
-                  <button type="submit" disabled={submitting} className="btn-primary w-full">
-                    {submitting ? t('dispute_detail.uploading') : t('dispute_detail.upload_btn')}
+                  <button type="submit" disabled={submitting || !evidenceFile} className="btn-primary w-full">
+                    {submitting ? t('dispute_detail.uploading') : t('dispute_detail.upload_submit')}
                   </button>
                 </form>
               )}

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { join } from 'path';
 import { ScheduleModule } from '@nestjs/schedule';
-import { DatabaseModule, RabbitMQModule, HealthModule } from '@exchange/common';
+import { DatabaseModule, RabbitMQModule, HealthModule, StorageModule } from '@exchange/common';
 import { DisputesModule } from './disputes/disputes.module';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { DisputeEntity } from './disputes/dispute.entity';
@@ -23,6 +23,7 @@ import { ModeratorActionEntity } from './disputes/moderator-action.entity';
     }),
     ScheduleModule.forRoot(),
     RabbitMQModule.forRoot(),
+    StorageModule.forRoot(),
     HealthModule,
     DisputesModule,
     CleanupModule,

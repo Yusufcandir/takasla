@@ -491,6 +491,9 @@ importers:
       class-validator:
         specifier: ^0.14.1
         version: 0.14.3
+      multer:
+        specifier: ^1.4.5-lts.1
+        version: 1.4.5-lts.2
       pg:
         specifier: ^8.11.3
         version: 8.18.0
@@ -516,6 +519,9 @@ importers:
       '@types/jest':
         specifier: ^29.5.11
         version: 29.5.14
+      '@types/multer':
+        specifier: ^1.4.11
+        version: 1.4.13
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.33

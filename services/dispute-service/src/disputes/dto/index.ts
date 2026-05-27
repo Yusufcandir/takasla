@@ -19,8 +19,8 @@ export class UploadEvidenceDto {
   type!: string;
 
   @IsString()
-  @IsNotEmpty()
-  url!: string;
+  @IsOptional()
+  url?: string;
 
   @IsString()
   @IsOptional()

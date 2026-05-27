@@ -80,7 +80,7 @@ export class DisputesService {
     disputeId: string,
     uploadedBy: string,
     type: string,
-    url: string,
+    url?: string,
     description?: string,
     fileHash?: string,
   ): Promise<EvidenceEntity> {
