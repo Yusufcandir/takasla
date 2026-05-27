@@ -144,10 +144,11 @@ export const adminApi = {
     disputeId: string,
     data: {
       resolution: string;
-      outcome: 'completed' | 'revoked';
+      outcome?: 'completed' | 'revoked';
       outcomeType: string;
-      compensationAction: string;
+      compensationAction?: string;
       compensationAmount?: number;
+      centerId?: string;
     },
   ) => api.post<Dispute>(`/disputes/${disputeId}/resolve`, data),
   getUsers: () => api.get<UserSummary[]>('/auth/users'),

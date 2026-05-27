@@ -292,6 +292,12 @@ export const TRANSITIONS: TransitionDefinition[] = [
   },
   {
     from: TradeState.DISPUTE_OPEN,
+    event: 'dispute_ship_to_center',
+    to: TradeState.SHIPPING_TO_CENTER,
+    sideEffects: ['notify_shipping_to_center'],
+  },
+  {
+    from: TradeState.DISPUTE_OPEN,
     event: 'dispute_resolved',
     to: TradeState.COMPLETED,
     sideEffects: ['apply_resolution'],

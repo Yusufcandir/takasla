@@ -19,6 +19,7 @@ export enum DisputeOutcome {
   SELLER_WINS = 'seller_wins',
   SPLIT = 'split',
   ESCALATED = 'escalated',
+  SHIP_TO_CENTER = 'ship_to_center',
 }
 
 export enum CompensationAction {

@@ -99,8 +99,9 @@ export class DisputesController {
     @Body() body: ResolveDisputeDto,
   ) {
     return this.disputesService.resolve(
-      id, user.sub, body.resolution, body.outcome,
-      body.outcomeType, body.compensationAction, body.compensationAmount,
+      id, user.sub, body.resolution, body.outcome ?? 'completed',
+      body.outcomeType, body.compensationAction ?? 'no_refund' as any,
+      body.compensationAmount, body.centerId,
     );
   }
 

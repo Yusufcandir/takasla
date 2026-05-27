@@ -171,6 +171,17 @@ export class TradesService implements OnModuleInit {
         }
       },
     );
+
+    // Subscribe to dispute ship-to-center events
+    await this.rabbitMQService.subscribe(
+      QUEUES.TRADE_ON_DISPUTE_CENTER,
+      [ROUTING_KEYS.DISPUTE.SHIP_TO_CENTER],
+      async (msg: Record<string, unknown>) => {
+        const { tradeId, centerId } = msg as { tradeId: string; centerId: string };
+        this.logger.log(`Dispute ship-to-center for trade ${tradeId}, center ${centerId}`);
+        await this.handleDisputeShipToCenter(tradeId, centerId);
+      },
+    );
   }
 
   private async checkVelocityLimit(userId: string, trustScore: number): Promise<void> {
@@ -983,6 +994,62 @@ export class TradesService implements OnModuleInit {
       });
     });
     this.logger.log(`Trade ${tradeId} → DELIVERED (direct shipping)`);
+  }
+
+  // --- Dispute ship-to-center handler ---
+
+  private async handleDisputeShipToCenter(tradeId: string, centerId: string): Promise<void> {
+    const trade = await this.tradeRepo.findOne({ where: { id: tradeId } });
+    if (!trade) return;
+
+    const center = await this.centerRepo.findOne({ where: { id: centerId, isActive: true } });
+    if (!center) {
+      this.logger.warn(`Center ${centerId} not found or inactive for dispute ship-to-center`);
+      return;
+    }
+
+    const result = this.stateMachine.transition(trade, 'dispute_ship_to_center', 'system');
+    if (!result.success) {
+      this.logger.warn(`Cannot transition trade ${tradeId} for dispute ship-to-center: ${result.reason}`);
+      return;
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      trade.state = result.newState!;
+      trade.centerAId = centerId;
+      trade.centerBId = centerId;
+      trade.itemAAtCenter = false;
+      trade.itemBAtCenter = false;
+      trade.itemACenterVerified = false;
+      trade.itemBCenterVerified = false;
+      await manager.save(trade);
+
+      await manager.save(TradeEventEntity, {
+        tradeId,
+        eventType: 'trade.dispute_ship_to_center',
+        fromState: result.fromState,
+        toState: result.newState,
+        payload: { centerId, centerName: center.name },
+      });
+
+      // Create center verification records for both items
+      await manager.save(CenterVerificationEntity, manager.create(CenterVerificationEntity, {
+        tradeId: trade.id,
+        listingId: trade.listingAId,
+        centerId,
+        party: 'A',
+        status: 'pending',
+      }));
+      await manager.save(CenterVerificationEntity, manager.create(CenterVerificationEntity, {
+        tradeId: trade.id,
+        listingId: trade.listingBId,
+        centerId,
+        party: 'B',
+        status: 'pending',
+      }));
+    });
+
+    this.logger.log(`Trade ${tradeId} → SHIPPING_TO_CENTER (dispute inspection at ${center.name})`);
   }
 
   // --- Center verification handlers ---

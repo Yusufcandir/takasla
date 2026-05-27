@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { isModeratorOrAdmin } from '@/lib/auth';
-import { disputesApi, adminApi, getImageUrl } from '@/lib/api';
-import type { Dispute } from '@/types';
+import { disputesApi, adminApi, centersApi, getImageUrl } from '@/lib/api';
+import type { Dispute, VerificationCenter } from '@/types';
 
 export default function AdminDisputeDetailPage() {
   const params = useParams();
@@ -21,29 +21,43 @@ export default function AdminDisputeDetailPage() {
   const [resolving, setResolving] = useState(false);
   const [resolveError, setResolveError] = useState('');
   const [resolveSuccess, setResolveSuccess] = useState(false);
+  const [centers, setCenters] = useState<VerificationCenter[]>([]);
+  const [selectedCenterId, setSelectedCenterId] = useState('');
 
   useEffect(() => {
     if (!isModeratorOrAdmin()) { window.location.href = '/login'; return; }
     disputesApi.getById(disputeId)
       .then(setDispute)
       .finally(() => setLoading(false));
+    centersApi.list().then(setCenters).catch(() => {});
   }, [disputeId]);
 
   const handleResolve = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resolution.trim()) { setResolveError('Please provide a resolution.'); return; }
+    if (outcomeType === 'ship_to_center' && !selectedCenterId) {
+      setResolveError('Please select a verification center.');
+      return;
+    }
     setResolveError('');
     setResolving(true);
     try {
       const data: {
         resolution: string;
-        outcome: 'completed' | 'revoked';
+        outcome?: 'completed' | 'revoked';
         outcomeType: string;
-        compensationAction: string;
+        compensationAction?: string;
         compensationAmount?: number;
-      } = { resolution, outcome, outcomeType, compensationAction };
-      if (compensationAction === 'partial_refund' && compensationAmount) {
-        data.compensationAmount = parseFloat(compensationAmount);
+        centerId?: string;
+      } = { resolution, outcomeType };
+      if (outcomeType === 'ship_to_center') {
+        data.centerId = selectedCenterId;
+      } else {
+        data.outcome = outcome;
+        data.compensationAction = compensationAction;
+        if (compensationAction === 'partial_refund' && compensationAmount) {
+          data.compensationAmount = parseFloat(compensationAmount);
+        }
       }
       const updated = await adminApi.resolveDispute(disputeId, data);
       setDispute(updated);
@@ -169,6 +183,7 @@ export default function AdminDisputeDetailPage() {
                     dispute.outcomeType === 'buyer_wins' ? 'bg-blue-50 text-blue-700' :
                     dispute.outcomeType === 'seller_wins' ? 'bg-emerald-50 text-emerald-700' :
                     dispute.outcomeType === 'split' ? 'bg-purple-50 text-purple-700' :
+                    dispute.outcomeType === 'ship_to_center' ? 'bg-cyan-50 text-cyan-700' :
                     'bg-amber-50 text-amber-700'
                   }`}>{dispute.outcomeType.replace(/_/g, ' ')}</span>
                 </div>
@@ -252,15 +267,25 @@ export default function AdminDisputeDetailPage() {
           <div className="card">
             <div className="px-5 py-4 border-b border-slate-100"><h2 className="font-semibold text-slate-900">Resolution</h2></div>
             <div className="p-5">
-              {resolveSuccess || isResolved ? (
+              {resolveSuccess || isResolved || (dispute.status === 'under_review' && dispute.outcomeType === 'ship_to_center') ? (
                 <div className="text-center py-4">
-                  <svg className="w-10 h-10 text-emerald-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  <p className="text-sm text-emerald-700 font-medium">Dispute resolved</p>
-                  {dispute.resolvedAt && <p className="text-xs text-slate-400 mt-1">{new Date(dispute.resolvedAt).toLocaleString()}</p>}
-                  {dispute.outcomeType && (
-                    <p className="text-xs text-slate-500 mt-2">
-                      Outcome: {dispute.outcomeType.replace(/_/g, ' ')} &middot; {dispute.compensationAction?.replace(/_/g, ' ')}
-                    </p>
+                  {dispute.outcomeType === 'ship_to_center' && dispute.status === 'under_review' ? (
+                    <>
+                      <svg className="w-10 h-10 text-cyan-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                      <p className="text-sm text-cyan-700 font-medium">Shipped to center for inspection</p>
+                      <p className="text-xs text-slate-500 mt-2">Awaiting center verification. Outcome will be determined automatically after inspection.</p>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-10 h-10 text-emerald-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <p className="text-sm text-emerald-700 font-medium">Dispute resolved</p>
+                      {dispute.resolvedAt && <p className="text-xs text-slate-400 mt-1">{new Date(dispute.resolvedAt).toLocaleString()}</p>}
+                      {dispute.outcomeType && (
+                        <p className="text-xs text-slate-500 mt-2">
+                          Outcome: {dispute.outcomeType.replace(/_/g, ' ')} &middot; {dispute.compensationAction?.replace(/_/g, ' ')}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
@@ -289,42 +314,65 @@ export default function AdminDisputeDetailPage() {
                       <option value="buyer_wins">Buyer Wins (refund buyer)</option>
                       <option value="seller_wins">Seller Wins (complete trade)</option>
                       <option value="split">Split (partial refund)</option>
+                      <option value="ship_to_center">Ship to Center (inspect item)</option>
                       <option value="escalated">Escalate to Senior</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label className="label">Trade Outcome</label>
-                    <select value={outcome} onChange={(e) => setOutcome(e.target.value as 'completed' | 'revoked')} className="input">
-                      <option value="completed">Complete Trade</option>
-                      <option value="revoked">Revoke Trade</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="label">Compensation Action</label>
-                    <select value={compensationAction} onChange={(e) => setCompensationAction(e.target.value)} className="input">
-                      <option value="no_refund">No Refund</option>
-                      <option value="full_refund">Full Refund</option>
-                      <option value="partial_refund">Partial Refund</option>
-                      <option value="re_ship">Re-Ship</option>
-                    </select>
-                  </div>
-
-                  {compensationAction === 'partial_refund' && (
+                  {outcomeType === 'ship_to_center' ? (
                     <div>
-                      <label className="label">Refund Amount</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={compensationAmount}
-                        onChange={(e) => setCompensationAmount(e.target.value)}
-                        placeholder="0.00"
+                      <label className="label">Verification Center</label>
+                      <select
+                        value={selectedCenterId}
+                        onChange={(e) => setSelectedCenterId(e.target.value)}
                         className="input"
                         required
-                      />
+                      >
+                        <option value="">Select a center...</option>
+                        {centers.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.city})</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Items will be shipped to this center for physical inspection. If confirmed damaged, a full refund will be issued automatically.
+                      </p>
                     </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="label">Trade Outcome</label>
+                        <select value={outcome} onChange={(e) => setOutcome(e.target.value as 'completed' | 'revoked')} className="input">
+                          <option value="completed">Complete Trade</option>
+                          <option value="revoked">Revoke Trade</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="label">Compensation Action</label>
+                        <select value={compensationAction} onChange={(e) => setCompensationAction(e.target.value)} className="input">
+                          <option value="no_refund">No Refund</option>
+                          <option value="full_refund">Full Refund</option>
+                          <option value="partial_refund">Partial Refund</option>
+                          <option value="re_ship">Re-Ship</option>
+                        </select>
+                      </div>
+
+                      {compensationAction === 'partial_refund' && (
+                        <div>
+                          <label className="label">Refund Amount</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={compensationAmount}
+                            onChange={(e) => setCompensationAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="input"
+                            required
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <div>
@@ -332,8 +380,8 @@ export default function AdminDisputeDetailPage() {
                     <textarea value={resolution} onChange={(e) => setResolution(e.target.value)} rows={4} placeholder="Explain your decision..." className="input min-h-[100px] resize-y" required />
                   </div>
 
-                  <button type="submit" disabled={resolving} className="btn-emerald w-full">
-                    {resolving ? 'Resolving...' : 'Resolve Dispute'}
+                  <button type="submit" disabled={resolving} className={`${outcomeType === 'ship_to_center' ? 'btn-primary' : 'btn-emerald'} w-full`}>
+                    {resolving ? 'Processing...' : outcomeType === 'ship_to_center' ? 'Ship to Center' : 'Resolve Dispute'}
                   </button>
                 </form>
               )}

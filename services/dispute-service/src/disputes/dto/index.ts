@@ -37,18 +37,24 @@ export class ResolveDisputeDto {
   resolution!: string;
 
   @IsIn(['completed', 'revoked'])
-  outcome!: 'completed' | 'revoked';
+  @IsOptional()
+  outcome?: 'completed' | 'revoked';
 
   @IsEnum(DisputeOutcome)
   outcomeType!: DisputeOutcome;
 
   @IsEnum(CompensationAction)
-  compensationAction!: CompensationAction;
+  @IsOptional()
+  compensationAction?: CompensationAction;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
   compensationAmount?: number;
+
+  @IsUUID()
+  @IsOptional()
+  centerId?: string;
 }
 
 export class AppealDisputeDto {

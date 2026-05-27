@@ -45,6 +45,20 @@ export class DisputesService {
         );
       },
     );
+
+    // Listen for center verification results to auto-resolve ship-to-center disputes
+    await this.rabbitMQService.subscribe(
+      'dispute.on-center-events',
+      [ROUTING_KEYS.CENTER.VERIFICATION_REJECTED, ROUTING_KEYS.CENTER.BOTH_VERIFIED],
+      async (msg, routingKey) => {
+        const { tradeId } = msg as { tradeId: string };
+        if (!tradeId) return;
+
+        const centerOutcome = routingKey === ROUTING_KEYS.CENTER.VERIFICATION_REJECTED
+          ? 'rejected' : 'approved';
+        await this.autoResolveFromCenter(tradeId, centerOutcome);
+      },
+    );
   }
 
   async openDispute(
@@ -103,8 +117,42 @@ export class DisputesService {
     outcomeType: DisputeOutcome,
     compensationAction: CompensationAction,
     compensationAmount?: number,
+    centerId?: string,
   ): Promise<DisputeEntity> {
     const dispute = await this.findById(disputeId);
+
+    // Ship to center: don't resolve yet, send item to center for physical inspection
+    if (outcomeType === DisputeOutcome.SHIP_TO_CENTER) {
+      if (!centerId) {
+        throw new ForbiddenException('A verification center must be selected for ship-to-center resolution');
+      }
+
+      dispute.status = DisputeStatus.UNDER_REVIEW;
+      dispute.resolution = resolution;
+      dispute.resolvedBy = moderatorId;
+      dispute.outcomeType = outcomeType;
+      const saved = await this.disputeRepo.save(dispute);
+
+      await this.actionRepo.save({
+        disputeId,
+        moderatorId,
+        actionType: 'ship_to_center',
+        notes: `Ship to center for inspection: ${resolution}`,
+      });
+
+      await this.rabbitMQService.publish(ROUTING_KEYS.DISPUTE.SHIP_TO_CENTER, {
+        eventId: uuidv4(),
+        correlationId: uuidv4(),
+        idempotencyKey: `ship-center:${dispute.id}`,
+        disputeId: dispute.id,
+        tradeId: dispute.tradeId,
+        centerId,
+        moderatorId,
+      });
+
+      this.logger.log(`Dispute ${dispute.id}: shipping to center ${centerId} for inspection`);
+      return saved;
+    }
 
     // Evidence requirements: must have at least one photo AND one video before resolution
     const evidence = await this.evidenceRepo.find({ where: { disputeId } });
@@ -164,6 +212,60 @@ export class DisputesService {
 
     this.logger.log(`Dispute resolved: ${dispute.id} -> ${outcomeType}/${compensationAction}`);
     return saved;
+  }
+
+  async autoResolveFromCenter(
+    tradeId: string,
+    centerOutcome: 'rejected' | 'approved',
+  ): Promise<void> {
+    const disputes = await this.disputeRepo.find({ where: { tradeId } });
+    const dispute = disputes.find(d =>
+      d.status === DisputeStatus.UNDER_REVIEW &&
+      d.outcomeType === DisputeOutcome.SHIP_TO_CENTER,
+    );
+    if (!dispute) return;
+
+    if (centerOutcome === 'rejected') {
+      // Item confirmed damaged → buyer wins, full refund
+      dispute.status = DisputeStatus.RESOLVED;
+      dispute.resolvedAt = new Date();
+      dispute.outcomeType = DisputeOutcome.BUYER_WINS;
+      dispute.compensationAction = CompensationAction.FULL_REFUND;
+      dispute.resolution = (dispute.resolution || '') + ' | Center confirmed item damaged — full refund issued.';
+      dispute.appealDeadline = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    } else {
+      // Item is fine → seller wins, no refund
+      dispute.status = DisputeStatus.RESOLVED;
+      dispute.resolvedAt = new Date();
+      dispute.outcomeType = DisputeOutcome.SELLER_WINS;
+      dispute.compensationAction = CompensationAction.NO_REFUND;
+      dispute.resolution = (dispute.resolution || '') + ' | Center verified item is in acceptable condition — trade completed.';
+      dispute.appealDeadline = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    }
+    await this.disputeRepo.save(dispute);
+
+    await this.actionRepo.save({
+      disputeId: dispute.id,
+      moderatorId: 'system',
+      actionType: 'center_auto_resolve',
+      notes: `Center ${centerOutcome}: ${dispute.outcomeType} / ${dispute.compensationAction}`,
+    });
+
+    const outcome = centerOutcome === 'rejected' ? 'revoked' : 'completed';
+    await this.rabbitMQService.publish(ROUTING_KEYS.DISPUTE.RESOLVED, {
+      eventId: uuidv4(),
+      correlationId: uuidv4(),
+      idempotencyKey: `center-resolve:${dispute.id}`,
+      disputeId: dispute.id,
+      tradeId: dispute.tradeId,
+      resolution: dispute.resolution,
+      resolvedBy: 'center_verification',
+      outcome,
+      outcomeType: dispute.outcomeType,
+      compensationAction: dispute.compensationAction,
+    });
+
+    this.logger.log(`Dispute ${dispute.id} auto-resolved from center: ${centerOutcome} → ${dispute.outcomeType}`);
   }
 
   async appealDispute(
