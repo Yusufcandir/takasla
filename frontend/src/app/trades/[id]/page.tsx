@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { tradesApi, certificatesApi, shippingApi, addressApi, paymentsApi, centersApi, ratingsApi, getImageUrl } from '@/lib/api';
+import { tradesApi, certificatesApi, shippingApi, addressApi, paymentsApi, centersApi, ratingsApi, disputesApi, getImageUrl } from '@/lib/api';
 import { getUserId, isModeratorOrAdmin } from '@/lib/auth';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -101,6 +101,8 @@ export default function TradeDetailPage() {
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeReason, setDisputeReason] = useState('item_mismatch');
   const [disputeDescription, setDisputeDescription] = useState('');
+  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
+  const disputeFileRef = useRef<HTMLInputElement>(null);
 
   // Shipping state
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -284,7 +286,30 @@ export default function TradeDetailPage() {
 
   const handleOpenDispute = async (e: React.FormEvent) => {
     e.preventDefault();
-    await handleAction(() => tradesApi.openDispute(tradeId, disputeReason, disputeDescription));
+    if (disputeFiles.length === 0) return;
+    await handleAction(async () => {
+      // 1. Upload evidence files
+      const uploaded = await disputesApi.uploadEvidenceFiles(disputeFiles);
+      // 2. Open the dispute (creates trade event + dispute record)
+      await tradesApi.openDispute(tradeId, disputeReason, disputeDescription);
+      // 3. Get the dispute that was just created and attach evidence
+      const disputes = await disputesApi.getByTrade(tradeId);
+      const dispute = disputes[disputes.length - 1];
+      if (dispute) {
+        for (const file of uploaded) {
+          const ext = file.originalName.split('.').pop()?.toLowerCase() || '';
+          const type = ['jpg','jpeg','png','gif','webp','heic'].includes(ext) ? 'photo'
+            : ['mp4','mov','avi','webm','mkv'].includes(ext) ? 'video' : 'document';
+          await disputesApi.uploadEvidence(dispute.id, {
+            type,
+            url: file.url,
+            fileHash: file.hash,
+          });
+        }
+      }
+    });
+    setDisputeFiles([]);
+    if (disputeFileRef.current) disputeFileRef.current.value = '';
     setShowDisputeModal(false);
   };
 
@@ -1711,11 +1736,30 @@ export default function TradeDetailPage() {
                   className="input min-h-[100px] resize-y"
                 />
               </div>
+              <div>
+                <label className="label">{t('trade_detail.dispute_evidence')} <span className="text-red-500">*</span></label>
+                <input
+                  ref={disputeFileRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,.pdf,.doc,.docx"
+                  onChange={(e) => setDisputeFiles(Array.from(e.target.files || []))}
+                  className="block w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-navy-50 file:text-navy-900 hover:file:bg-navy-100 cursor-pointer"
+                />
+                {disputeFiles.length > 0 && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {disputeFiles.length} {t('trade_detail.dispute_files_selected')}
+                  </p>
+                )}
+                {disputeFiles.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">{t('trade_detail.dispute_evidence_required')}</p>
+                )}
+              </div>
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowDisputeModal(false)} className="btn-secondary">
+                <button type="button" onClick={() => { setShowDisputeModal(false); setDisputeFiles([]); if (disputeFileRef.current) disputeFileRef.current.value = ''; }} className="btn-secondary">
                   {t('common.cancel')}
                 </button>
-                <button type="submit" disabled={actionLoading} className="btn-danger">
+                <button type="submit" disabled={actionLoading || disputeFiles.length === 0} className="btn-danger">
                   {actionLoading ? t('trade_detail.opening_dispute') : t('trade_detail.open_dispute')}
                 </button>
               </div>
